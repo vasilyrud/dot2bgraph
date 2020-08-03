@@ -27,4 +27,5 @@ def main():
     args = parser.parse_args()
 
     with open(args.dotfile, 'r') as f:
-        graph = dot2graph(f)
+        dot = ''.join(f.readlines())
+        graph = dot2graph(dot)

@@ -12,9 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def dot2graph(f):
+from pygraphviz import AGraph
+
+def dot2graph(dot: str):
+    agraph = AGraph(string=dot)
+
+    print(agraph.nodes())
+
     return None
 
 class Graph:
-    def __init__():
+    def __init__(self):
         pass
