@@ -13,24 +13,44 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Dict
 import weakref
 
 from pygraphviz import AGraph
 
-def add_regions_nodes(cur_region: Region):
-    cur_region.add_nodes(Node(node, cur_region) for node in direct_nodes(cur_region.agraph))
+def add_regions_nodes(
+    cur_region: Region,
+    anodes_to_nodes: Dict[str, Node],
+) -> None:
+    for anode in direct_nodes(cur_region.agraph):
+        node = Node(anode, cur_region)
+        cur_region.add_node(node)
+        anodes_to_nodes[anode] = node
+
     for sub_agraph in cur_region.agraph.subgraphs_iter():
         sub_region = Region(sub_agraph, cur_region)
         cur_region.add_node(sub_region)
-        add_regions_nodes(sub_region)
+        add_regions_nodes(sub_region, anodes_to_nodes)
 
 def direct_nodes(agraph: AGraph) -> set:
     all_nodes = set(agraph.nodes())
     sub_agraph_nodes = set()
+
     for sub_agraph in agraph.subgraphs_iter():
         sub_agraph_nodes.update(sub_agraph.nodes())
+
     return all_nodes - sub_agraph_nodes
+
+def add_edges(
+    base_region: Region, 
+    anodes_to_nodes: Dict[str, Node],
+) -> None:
+    for asource, adest in base_region.agraph.edges_iter():
+        from_node = anodes_to_nodes[asource]
+        to_node   = anodes_to_nodes[adest]
+
+        from_node.add_next(to_node)
+        to_node.add_prev(from_node)
 
 def dot2locations(dot: str):
     agraph = AGraph(string=dot)
@@ -42,8 +62,10 @@ def dot2locations(dot: str):
     # print(agraph.subgraphs()[0])
     # print(agraph.subgraphs()[0].subgraphs()[0])
 
+    anodes_to_nodes = {}
     base_region = Region(agraph)
-    add_regions_nodes(base_region)
+    add_regions_nodes(base_region, anodes_to_nodes)
+    add_edges(base_region, anodes_to_nodes)
 
     # print(base_region)
     base_region.print_nodes()
@@ -67,7 +89,23 @@ class Node:
         self.name = name
         if in_region is not None:
             self.in_region = weakref.ref(in_region)
-        self.nodes = []
+        self.nodes = [] # Empty for non-region
+
+        self.prev = []
+        self.next = []
+
+    def add_next(self, next_node: Node):
+        self.next.append(next_node)
+
+    def add_prev(self, prev_node: Node):
+        self.prev.append(prev_node)
+
+    def __print_anodes(self, nodes: Iterable[Node]) -> str:
+        ''' Only return the anode names
+        for the given list of nodes.
+        '''
+
+        return ','.join(node.name for node in nodes)
 
     @property
     def is_region(self) -> bool:
@@ -80,7 +118,12 @@ class Node:
             node.print_nodes(depth+1)
 
     def __repr__(self):
-        return '{} <{}>'.format(self.name, hex(id(self)))
+        return '{} <{}> ({}) ({})'.format(
+            self.name, 
+            hex(id(self)),
+            self.__print_anodes(self.prev),
+            self.__print_anodes(self.next),
+        )
 
 class Region(Node):
     def __init__(self,
@@ -90,10 +133,6 @@ class Region(Node):
     ):
         self.agraph = agraph
         super().__init__(agraph.get_name(), in_region)
-
-    def add_nodes(self, nodes: Iterable[str]) -> None:
-        for node in nodes:
-            self.add_node(node)
 
     def add_node(self, node: Node) -> None:
         self.nodes.append(node)
