@@ -100,29 +100,69 @@ class Node:
     def add_prev(self, prev_node: Node):
         self.prev.append(prev_node)
 
-    def __print_anodes(self, nodes: Iterable[Node]) -> str:
-        ''' Only return the anode names
-        for the given list of nodes.
-        '''
-
-        return ','.join(node.name for node in nodes)
-
-    @property
-    def is_region(self) -> bool:
-        return len(self.nodes) > 0
-
     def print_nodes(self, depth: int = 0):
         print('{}{}'.format(depth*'  ', self))
 
         for node in self.nodes:
             node.print_nodes(depth+1)
 
+    def __local_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
+        return [n for n in nodes if n in self.in_region().nodes]
+
+    def __other_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
+        return [n for n in nodes if n not in self.in_region().nodes]
+
+    @property
+    def local_next(self) -> Iterable[Node]:
+        return self.__local_nodes(self.next)
+
+    @property
+    def local_prev(self) -> Iterable[Node]:
+        return self.__local_nodes(self.prev)
+
+    @property
+    def other_next(self) -> Iterable[Node]:
+        return self.__other_nodes(self.next)
+
+    @property
+    def other_prev(self) -> Iterable[Node]:
+        return self.__other_nodes(self.prev)
+
+    @property
+    def is_region(self) -> bool:
+        return len(self.nodes) > 0
+
+    @property
+    def width(self) -> int:
+        return self.__width()
+
+    def __width(self) -> int:
+        width = max(1, len(self.local_prev), len(self.local_next))
+        return width
+
+    @property
+    def height(self) -> int:
+        return self.__height()
+
+    def __height(self) -> int:
+        height = max(1, len(self.other_prev), len(self.other_next))
+        return height
+
+    def __node_names(self, nodes: Iterable[Node]) -> str:
+        ''' Only return a string of the anode names
+        for the given list of nodes.
+        '''
+        return ','.join(node.name for node in nodes)
+
     def __repr__(self):
-        return '{} <{}> ({}) ({})'.format(
+        return '{} <{}x{}> ({})({}) [{}][{}]'.format(
             self.name, 
-            hex(id(self)),
-            self.__print_anodes(self.prev),
-            self.__print_anodes(self.next),
+            self.width,
+            self.height,
+            self.__node_names(self.local_prev),
+            self.__node_names(self.local_next),
+            self.__node_names(self.other_prev),
+            self.__node_names(self.other_next),
         )
 
 class Region(Node):
@@ -136,6 +176,12 @@ class Region(Node):
 
     def add_node(self, node: Node) -> None:
         self.nodes.append(node)
+
+    def __width(self) -> int:
+        return 100
+
+    def __height(self) -> int:
+        return 100
 
 class Locations:
     def __init__(self):
