@@ -100,10 +100,26 @@ class Node:
     def add_prev(self, prev_node: Node):
         self.prev.append(prev_node)
 
+    def nodes_iter(self) -> Iterable[Node]:
+        ''' Return first the individual nodes in this region
+        and then the sub-regions, all alphabetically.
+        '''
+        for node in sorted(
+            filter(lambda n: not n.is_region, self.nodes), 
+            key=lambda n: n.name
+        ):
+            yield node
+
+        for node in sorted(
+            filter(lambda n: n.is_region, self.nodes), 
+            key=lambda n: n.name
+        ):
+            yield node
+
     def print_nodes(self, depth: int = 0):
         print('{}{}'.format(depth*'  ', self))
 
-        for node in self.nodes:
+        for node in self.nodes_iter():
             node.print_nodes(depth+1)
 
     def __local_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
@@ -134,19 +150,11 @@ class Node:
 
     @property
     def width(self) -> int:
-        return self.__width()
-
-    def __width(self) -> int:
-        width = max(1, len(self.local_prev), len(self.local_next))
-        return width
+        return max(1, len(self.local_prev), len(self.local_next))
 
     @property
     def height(self) -> int:
-        return self.__height()
-
-    def __height(self) -> int:
-        height = max(1, len(self.other_prev), len(self.other_next))
-        return height
+        return max(1, len(self.other_prev), len(self.other_next))
 
     def __node_names(self, nodes: Iterable[Node]) -> str:
         ''' Only return a string of the anode names
@@ -180,7 +188,12 @@ class Region(Node):
     def __width(self) -> int:
         return 100
 
-    def __height(self) -> int:
+    @property
+    def width(self) -> int:
+        return 100
+
+    @property
+    def height(self) -> int:
         return 100
 
 class Locations:
