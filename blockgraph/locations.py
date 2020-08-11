@@ -20,21 +20,7 @@ from blockgraph.node import Node, Region
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
 
-def add_regions_nodes(
-    cur_region: Region,
-    anodes_to_nodes: ANodeToNode,
-) -> None:
-    for anode in direct_nodes(cur_region.agraph):
-        node = Node(anode, cur_region)
-        cur_region.add_node(node)
-        anodes_to_nodes[anode] = node
-
-    for sub_agraph in cur_region.agraph.subgraphs_iter():
-        sub_region = Region(sub_agraph, cur_region)
-        cur_region.add_node(sub_region)
-        add_regions_nodes(sub_region, anodes_to_nodes)
-
-def direct_nodes(agraph: AGraph) -> set:
+def __direct_nodes(agraph: AGraph) -> set:
     all_nodes = set(agraph.nodes())
     sub_agraph_nodes = set()
 
@@ -43,7 +29,21 @@ def direct_nodes(agraph: AGraph) -> set:
 
     return all_nodes - sub_agraph_nodes
 
-def add_edges(
+def __add_regions_nodes(
+    cur_region: Region,
+    anodes_to_nodes: ANodeToNode,
+) -> None:
+    for anode in __direct_nodes(cur_region.agraph):
+        node = Node(anode, cur_region)
+        cur_region.add_node(node)
+        anodes_to_nodes[anode] = node
+
+    for sub_agraph in cur_region.agraph.subgraphs_iter():
+        sub_region = Region(sub_agraph, cur_region)
+        cur_region.add_node(sub_region)
+        __add_regions_nodes(sub_region, anodes_to_nodes)
+
+def __add_edges(
     base_region: Region, 
     anodes_to_nodes: ANodeToNode,
 ) -> None:
@@ -54,8 +54,27 @@ def add_edges(
         from_node.add_next(to_node)
         to_node.add_prev(from_node)
 
+def __agraph2regions(agraph: AGraph):
+    anodes_to_nodes: ANodeToNode = {}
+    base_region = Region(agraph)
+
+    __add_regions_nodes(base_region, anodes_to_nodes)
+    __add_edges(base_region, anodes_to_nodes)
+
+    return base_region
+
+def __regions2locations(base_region: Region):
+    locations = Locations(base_region)
+
+    # Determine sources and sinks
+    # Determine cur_region depth
+    # Determine cur_region width
+    # Place nodes in the region
+    # Center nodes
+
+    return locations
+
 def dot2locations(dot: str):
-    agraph = AGraph(string=dot)
 
     # print('VAS nodes')
     # print(agraph.nodes())
@@ -64,21 +83,15 @@ def dot2locations(dot: str):
     # print(agraph.subgraphs()[0])
     # print(agraph.subgraphs()[0].subgraphs()[0])
 
-    anodes_to_nodes: ANodeToNode = {}
-    base_region = Region(agraph)
-    add_regions_nodes(base_region, anodes_to_nodes)
-    add_edges(base_region, anodes_to_nodes)
+    agraph = AGraph(string=dot)
 
+    base_region = __agraph2regions(agraph)
     base_region.print_nodes()
 
-    # Determine sources and sinks
-    # Determine cur_region depth
-    # Determine cur_region width
-    # Place nodes in the region
-    # Center nodes
+    locations = __regions2locations(base_region)
 
     return None
 
 class Locations:
-    def __init__(self):
-        pass
+    def __init__(self, base_region: Region):
+        self.base_region = base_region
