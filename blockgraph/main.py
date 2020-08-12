@@ -14,7 +14,7 @@
 
 import argparse
 
-from blockgraph.locations import dot2locations
+from blockgraph.converter.directed import dot2locations
 
 def main():
 
@@ -28,4 +28,4 @@ def main():
 
     with open(args.dotfile, 'r') as f:
         dot = ''.join(f.readlines())
-        graph = dot2locations(dot)
+        locations = dot2locations(dot)
