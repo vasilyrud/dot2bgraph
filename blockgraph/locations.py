@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 from typing import Dict, NewType
 
 from pygraphviz import AGraph
@@ -74,7 +75,7 @@ def __regions2locations(base_region: Region):
 
     return locations
 
-def dot2locations(dot: str):
+def dot2locations(dot: str) -> Locations:
 
     # print('VAS nodes')
     # print(agraph.nodes())
@@ -90,8 +91,11 @@ def dot2locations(dot: str):
 
     locations = __regions2locations(base_region)
 
-    return None
+    return locations
 
 class Locations:
     def __init__(self, base_region: Region):
         self.base_region = base_region
+
+    def to_obj(self):
+        return {}

@@ -25,8 +25,7 @@ class Node:
         *args, **kwargs
     ):
         self.name = name
-        if in_region is not None:
-            self.in_region = weakref.ref(in_region)
+        self.in_region = None if in_region is None else weakref.ref(in_region)
         self.nodes = [] # Empty for non-region
 
         self.prev = []
@@ -60,11 +59,20 @@ class Node:
         for node in self.nodes_iter():
             node.print_nodes(depth+1)
 
+    def __is_local_node(self, node: Node) -> bool:
+        ''' Is this node within the same region as self.
+        Cannot be another local node if in top-level.
+        '''
+        if self.in_region is None:
+            return False
+
+        return node in self.in_region().nodes
+
     def __local_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
-        return [n for n in nodes if n in self.in_region().nodes]
+        return [n for n in nodes if self.__is_local_node(n)]
 
     def __other_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
-        return [n for n in nodes if n not in self.in_region().nodes]
+        return [n for n in nodes if not self.__is_local_node(n)]
 
     @property
     def local_next(self) -> Iterable[Node]:
