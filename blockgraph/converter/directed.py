@@ -68,6 +68,13 @@ def __agraph2regions(agraph: AGraph):
 def __regions2locations(base_region: Region):
     locations = Locations()
 
+    b0 = locations.add_block(x=5)
+    b1 = locations.add_block(y=8)
+    e0 = locations.add_edge_end(block_id=b0, direction='left')
+    e1 = locations.add_edge_end(block_id=b1)
+    locations.add_edge(e0, e1)
+    locations.print_locations()
+
     # Determine sources and sinks
     # Determine cur_region depth
     # Determine cur_region width

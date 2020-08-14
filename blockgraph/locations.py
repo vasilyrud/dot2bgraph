@@ -30,13 +30,17 @@ class _Block:
 
         self.edge_ends = []
 
+    def add_edge_end(self, edge_end):
+        self.edge_ends.append(edge_end)
+
     def __repr__(self):
-        return 'B {} ({},{}) {}x{}'.format(
+        return 'B {} ({},{}) {}x{} [{}]'.format(
             self.block_id,
             self.x,
             self.y,
             self.width,
             self.height,
+            ','.join(str(edge_end.edge_end_id) for edge_end in self.edge_ends),
         )
 
 class _EdgeEnd:
@@ -65,25 +69,68 @@ class _EdgeEnd:
 
         self.edge_ends = []
 
+    def add_edge(self, to_edge_end):
+        self.edge_ends.append(to_edge_end)
+
     def __repr__(self):
-        return 'E {} ({},{}) {}'.format(
+        return 'E {} ({},{}) {} -> [{}]'.format(
             self.edge_end_id,
             self.x,
             self.y,
             self.direction,
+            ','.join(str(edge_end.edge_end_id) for edge_end in self.edge_ends),
         )
 
 class Locations:
-    def __init__(self):
-        self.blocks_id_counter = 0
-        self.blocks = []
-        self.edge_ends_id_counter = 0
-        self.edge_ends = []
+    ''' Object for all locations of blocks and edges
+    in the graph.
 
-        self.blocks.append(_Block(0, x=5))
-        print(self.blocks[0])
-        self.edge_ends.append(_EdgeEnd(0, direction='down'))
-        print(self.edge_ends[0])
+    Define dedicated adder functions rather than simply 
+    using sub-object's constructors in order to keep 
+    track of IDs from the Locations object.
+    '''
+    def __init__(self):
+        self.__blocks_id_counter = 0
+        self.__blocks = {} # Use dict as Blocks can be deleted
+        self.__edge_ends_id_counter = 0
+        self.__edge_ends = {}
+
+    def add_block(self, *args, **kwargs):
+        new_block_id = self.__blocks_id_counter
+        self.__blocks_id_counter += 1
+
+        self.__blocks[new_block_id] = _Block(new_block_id, *args, **kwargs)
+        return new_block_id
+
+    def add_edge_end(self, block_id=None, *args, **kwargs):
+        new_edge_end_id = self.__edge_ends_id_counter
+        self.__edge_ends_id_counter += 1
+
+        self.__edge_ends[new_edge_end_id] = _EdgeEnd(new_edge_end_id, *args, **kwargs)
+        if block_id is not None:
+            self.add_edge_end_to_block(block_id, new_edge_end_id)
+
+        return new_edge_end_id
+
+    def add_edge_end_to_block(self, block_id, edge_end_id):
+        if (
+            block_id    in self.__blocks and 
+            edge_end_id in self.__edge_ends
+        ):
+            self.__blocks[block_id].add_edge_end(self.__edge_ends[edge_end_id])
+
+    def add_edge(self, from_id, to_id):
+        if (
+            from_id in self.__edge_ends and 
+            to_id   in self.__edge_ends
+        ):
+            self.__edge_ends[from_id].add_edge(self.__edge_ends[to_id])
+
+    def del_block(self, block_id):
+        del self.__blocks[block_id]
+    
+    def del_edge_end(self, block_id):
+        del self.__blocks[block_id]
 
     def to_obj(self):
         obj = {
@@ -92,3 +139,19 @@ class Locations:
         }
 
         return obj
+
+    def print_locations(self):
+        print('Blocks:')
+        for block in self.__blocks.values():
+            print('  {}'.format(block))
+        
+        print('EdgeEnds:')
+        for edge_end in self.__edge_ends.values():
+            print('  {}'.format(edge_end))
+
+    def __repr__(self):
+        return '<{}> blocks:{}, edge_ends:{}'.format(
+            hex(id(self)),
+            len(self.__blocks),
+            len(self.__edge_ends),
+        )

@@ -131,9 +131,6 @@ class Region(Node):
     def add_node(self, node: Node) -> None:
         self.nodes.append(node)
 
-    def __width(self) -> int:
-        return 100
-
     @property
     def width(self) -> int:
         return 100
