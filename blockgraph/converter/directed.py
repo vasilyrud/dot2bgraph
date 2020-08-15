@@ -22,7 +22,7 @@ from blockgraph.locations import Locations
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
 
-def __direct_nodes(agraph: AGraph) -> set:
+def _direct_nodes(agraph: AGraph) -> set:
     all_nodes = set(agraph.nodes())
     sub_agraph_nodes = set()
 
@@ -31,11 +31,11 @@ def __direct_nodes(agraph: AGraph) -> set:
 
     return all_nodes - sub_agraph_nodes
 
-def __add_regions_nodes(
+def _add_regions_nodes(
     cur_region: Region,
     anodes_to_nodes: ANodeToNode,
 ) -> None:
-    for anode in __direct_nodes(cur_region.agraph):
+    for anode in _direct_nodes(cur_region.agraph):
         node = Node(anode, cur_region)
         cur_region.add_node(node)
         anodes_to_nodes[anode] = node
@@ -43,9 +43,9 @@ def __add_regions_nodes(
     for sub_agraph in cur_region.agraph.subgraphs_iter():
         sub_region = Region(sub_agraph, cur_region)
         cur_region.add_node(sub_region)
-        __add_regions_nodes(sub_region, anodes_to_nodes)
+        _add_regions_nodes(sub_region, anodes_to_nodes)
 
-def __add_edges(
+def _add_edges(
     base_region: Region, 
     anodes_to_nodes: ANodeToNode,
 ) -> None:
@@ -56,24 +56,17 @@ def __add_edges(
         from_node.add_next(to_node)
         to_node.add_prev(from_node)
 
-def __agraph2regions(agraph: AGraph):
+def _agraph2regions(agraph: AGraph):
     anodes_to_nodes: ANodeToNode = {}
     base_region = Region(agraph)
 
-    __add_regions_nodes(base_region, anodes_to_nodes)
-    __add_edges(base_region, anodes_to_nodes)
+    _add_regions_nodes(base_region, anodes_to_nodes)
+    _add_edges(base_region, anodes_to_nodes)
 
     return base_region
 
-def __regions2locations(base_region: Region):
+def _regions2locations(base_region: Region):
     locations = Locations()
-
-    b0 = locations.add_block(x=5)
-    b1 = locations.add_block(y=8)
-    e0 = locations.add_edge_end(block_id=b0, direction='left')
-    e1 = locations.add_edge_end(block_id=b1)
-    locations.add_edge(e0, e1)
-    locations.print_locations()
 
     # Determine sources and sinks
     # Determine cur_region depth
@@ -94,9 +87,9 @@ def dot2locations(dot: str) -> Locations:
 
     agraph = AGraph(string=dot)
 
-    base_region = __agraph2regions(agraph)
+    base_region = _agraph2regions(agraph)
     base_region.print_nodes()
 
-    locations = __regions2locations(base_region)
+    locations = _regions2locations(base_region)
 
     return locations

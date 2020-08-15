@@ -30,11 +30,19 @@ class _Block:
 
         self.edge_ends = []
 
+    @property
+    def coords(self):
+        return (self.x, self.y)
+
+    @property
+    def size(self):
+        return (self.width, self.height)
+
     def add_edge_end(self, edge_end):
         self.edge_ends.append(edge_end)
 
-    def __repr__(self):
-        return 'B {} ({},{}) {}x{} [{}]'.format(
+    def __str__(self):
+        return 'B{} ({},{}) {}x{} [{}]'.format(
             self.block_id,
             self.x,
             self.y,
@@ -43,8 +51,13 @@ class _Block:
             ','.join(str(edge_end.edge_end_id) for edge_end in self.edge_ends),
         )
 
+    def __repr__(self):
+        return 'B{}'.format(
+            self.block_id,
+        )
+
 class _EdgeEnd:
-    class _Direction:
+    class Direction:
         VALID_DIRECTIONS = [
             'up',
             'down',
@@ -55,30 +68,49 @@ class _EdgeEnd:
         def __init__(self, direction):
             if direction not in self.VALID_DIRECTIONS:
                 raise ValueError('{} is not a recognized direction.'.format(direction))
-            self.direction = direction
-        
+            self._direction = direction
+
+        def __eq__(self, other):
+            if isinstance(other, _EdgeEnd.Direction):
+                return self._direction == other._direction
+            elif isinstance(other, str):
+                return self._direction == other
+            return NotImplemented
+
+        def __hash__(self):
+            return hash(self._direction)
+
         def __repr__(self):
-            return self.direction
+            return self._direction
 
     def __init__(self, edge_end_id, *args, **kwargs):
         self.edge_end_id = edge_end_id
 
         self.x = kwargs.get('x', 0)
         self.y = kwargs.get('y', 0)
-        self.direction = _EdgeEnd._Direction(kwargs.get('direction', 'up'))
+        self.direction = _EdgeEnd.Direction(kwargs.get('direction', 'up'))
 
         self.edge_ends = []
+
+    @property
+    def coords(self):
+        return (self.x, self.y)
 
     def add_edge(self, to_edge_end):
         self.edge_ends.append(to_edge_end)
 
-    def __repr__(self):
-        return 'E {} ({},{}) {} -> [{}]'.format(
+    def __str__(self):
+        return 'E{} ({},{}) {} -> [{}]'.format(
             self.edge_end_id,
             self.x,
             self.y,
             self.direction,
             ','.join(str(edge_end.edge_end_id) for edge_end in self.edge_ends),
+        )
+
+    def __repr__(self):
+        return 'E{}'.format(
+            self.edge_end_id,
         )
 
 class Locations:
@@ -90,23 +122,23 @@ class Locations:
     track of IDs from the Locations object.
     '''
     def __init__(self):
-        self.__blocks_id_counter = 0
-        self.__blocks = {} # Use dict as Blocks can be deleted
-        self.__edge_ends_id_counter = 0
-        self.__edge_ends = {}
+        self._blocks_id_counter = 0
+        self._blocks = {} # Use dict as Blocks can be deleted
+        self._edge_ends_id_counter = 0
+        self._edge_ends = {}
 
     def add_block(self, *args, **kwargs):
-        new_block_id = self.__blocks_id_counter
-        self.__blocks_id_counter += 1
+        new_block_id = self._blocks_id_counter
+        self._blocks_id_counter += 1
 
-        self.__blocks[new_block_id] = _Block(new_block_id, *args, **kwargs)
+        self._blocks[new_block_id] = _Block(new_block_id, *args, **kwargs)
         return new_block_id
 
     def add_edge_end(self, block_id=None, *args, **kwargs):
-        new_edge_end_id = self.__edge_ends_id_counter
-        self.__edge_ends_id_counter += 1
+        new_edge_end_id = self._edge_ends_id_counter
+        self._edge_ends_id_counter += 1
 
-        self.__edge_ends[new_edge_end_id] = _EdgeEnd(new_edge_end_id, *args, **kwargs)
+        self._edge_ends[new_edge_end_id] = _EdgeEnd(new_edge_end_id, *args, **kwargs)
         if block_id is not None:
             self.add_edge_end_to_block(block_id, new_edge_end_id)
 
@@ -114,23 +146,29 @@ class Locations:
 
     def add_edge_end_to_block(self, block_id, edge_end_id):
         if (
-            block_id    in self.__blocks and 
-            edge_end_id in self.__edge_ends
+            block_id    in self._blocks and 
+            edge_end_id in self._edge_ends
         ):
-            self.__blocks[block_id].add_edge_end(self.__edge_ends[edge_end_id])
+            self._blocks[block_id].add_edge_end(self._edge_ends[edge_end_id])
 
     def add_edge(self, from_id, to_id):
         if (
-            from_id in self.__edge_ends and 
-            to_id   in self.__edge_ends
+            from_id in self._edge_ends and 
+            to_id   in self._edge_ends
         ):
-            self.__edge_ends[from_id].add_edge(self.__edge_ends[to_id])
+            self._edge_ends[from_id].add_edge(self._edge_ends[to_id])
+
+    def block(self, block_id):
+        return self._blocks[block_id]
+
+    def edge_end(self, edge_end_id):
+        return self._edge_ends[edge_end_id]
 
     def del_block(self, block_id):
-        del self.__blocks[block_id]
+        del self._blocks[block_id]
     
-    def del_edge_end(self, block_id):
-        del self.__blocks[block_id]
+    def del_edge_end(self, edge_end_id):
+        del self._edge_ends[edge_end_id]
 
     def to_obj(self):
         obj = {
@@ -142,16 +180,16 @@ class Locations:
 
     def print_locations(self):
         print('Blocks:')
-        for block in self.__blocks.values():
+        for block in self._blocks.values():
             print('  {}'.format(block))
         
         print('EdgeEnds:')
-        for edge_end in self.__edge_ends.values():
+        for edge_end in self._edge_ends.values():
             print('  {}'.format(edge_end))
 
     def __repr__(self):
         return '<{}> blocks:{}, edge_ends:{}'.format(
             hex(id(self)),
-            len(self.__blocks),
-            len(self.__edge_ends),
+            len(self._blocks),
+            len(self._edge_ends),
         )

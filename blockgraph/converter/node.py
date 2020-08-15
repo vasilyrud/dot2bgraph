@@ -59,7 +59,7 @@ class Node:
         for node in self.nodes_iter():
             node.print_nodes(depth+1)
 
-    def __is_local_node(self, node: Node) -> bool:
+    def _is_local_node(self, node: Node) -> bool:
         ''' Is this node within the same region as self.
         Cannot be another local node if in top-level.
         '''
@@ -68,27 +68,27 @@ class Node:
 
         return node in self.in_region().nodes
 
-    def __local_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
-        return [n for n in nodes if self.__is_local_node(n)]
+    def _local_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
+        return [n for n in nodes if self._is_local_node(n)]
 
-    def __other_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
-        return [n for n in nodes if not self.__is_local_node(n)]
+    def _other_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
+        return [n for n in nodes if not self._is_local_node(n)]
 
     @property
     def local_next(self) -> Iterable[Node]:
-        return self.__local_nodes(self.next)
+        return self._local_nodes(self.next)
 
     @property
     def local_prev(self) -> Iterable[Node]:
-        return self.__local_nodes(self.prev)
+        return self._local_nodes(self.prev)
 
     @property
     def other_next(self) -> Iterable[Node]:
-        return self.__other_nodes(self.next)
+        return self._other_nodes(self.next)
 
     @property
     def other_prev(self) -> Iterable[Node]:
-        return self.__other_nodes(self.prev)
+        return self._other_nodes(self.prev)
 
     @property
     def is_region(self) -> bool:
@@ -102,7 +102,7 @@ class Node:
     def height(self) -> int:
         return max(1, len(self.other_prev), len(self.other_next))
 
-    def __node_names(self, nodes: Iterable[Node]) -> str:
+    def _node_names(self, nodes: Iterable[Node]) -> str:
         ''' Only return a string of the anode names
         for the given list of nodes.
         '''
@@ -113,10 +113,10 @@ class Node:
             self.name, 
             self.width,
             self.height,
-            self.__node_names(self.local_prev),
-            self.__node_names(self.local_next),
-            self.__node_names(self.other_prev),
-            self.__node_names(self.other_next),
+            self._node_names(self.local_prev),
+            self._node_names(self.local_next),
+            self._node_names(self.other_prev),
+            self._node_names(self.other_next),
         )
 
 class Region(Node):
