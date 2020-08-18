@@ -1,6 +1,6 @@
 import pytest
 
-from bgraph.blockgraph.locations import Locations, _Block, _EdgeEnd
+from bgraph.blockgraph.locations import Locations, _Block, _EdgeEnd, _Direction
 
 def _make_blocks(locs: Locations):
     b0 = locs.add_block()
@@ -14,9 +14,9 @@ def _make_edge_ends(locs: Locations):
     return e0, e1
 
 def _make_directions():
-    dir1 = _EdgeEnd.Direction('down')
-    dir2 = _EdgeEnd.Direction('down')
-    dir3 = _EdgeEnd.Direction('up')
+    dir1 = _Direction('down')
+    dir2 = _Direction('down')
+    dir3 = _Direction('up')
     return dir1, dir2, dir3
 
 def test_locations_init():
@@ -67,7 +67,7 @@ def test_add_edge_end():
     locs.assign_edge_to_block(e0, b1)
     assert locs.edge_end(e0).coords == (5,1)
     assert locs.edge_end(e0).direction == 'down'
-    assert locs.edge_end(e0) in locs.block(b1).edge_ends
+    assert e0 in locs.block(b1).edge_ends
 
 def test_edge_end_ids():
     locs = Locations()
@@ -90,14 +90,48 @@ def test_add_edge_end_with_block():
     locs = Locations()
     b0, _, _ = _make_blocks(locs)
     e0 = locs.add_edge_end(block_id=b0)
-    assert locs.edge_end(e0) in locs.block(b0).edge_ends
+    assert e0 in locs.block(b0).edge_ends
+
+def test_del_edge_end_from_block():
+    locs = Locations()
+    b0, _, _ = _make_blocks(locs)
+    e0 = locs.add_edge_end(block_id=b0)
+    locs.del_edge_end_from_block(e0, b0)
+    assert e0 not in locs.block(b0).edge_ends
+    with pytest.raises(KeyError):
+        locs.block(b0)._del_edge_end(locs.edge_end(e0))
 
 def test_add_edge():
     locs = Locations()
     e0, e1 = _make_edge_ends(locs)
     locs.add_edge(e0, e1)
-    assert locs.edge_end(e1) in locs.edge_end(e0).edge_ends
-    assert locs.edge_end(e0) not in locs.edge_end(e1).edge_ends
+    assert e1 in locs.edge_end(e0).edge_ends
+    assert e0 not in locs.edge_end(e1).edge_ends
+
+def test_add_many_edges():
+    locs = Locations()
+    e0, e1 = _make_edge_ends(locs)
+    locs.add_edge(e0, e1)
+    locs.add_edge(e0, e1)
+    assert e1 in locs.edge_end(e0).edge_ends
+    assert len(locs.edge_end(e0).edge_ends) == 2
+    assert locs.edge_end(e0).edge_ends[0] == e1
+    assert locs.edge_end(e0).edge_ends[1] == e1
+
+def test_del_edges():
+    locs = Locations()
+    e0, e1 = _make_edge_ends(locs)
+    e2 = locs.add_edge_end()
+    locs.add_edge(e0, e1)
+    locs.add_edge(e0, e1)
+    locs.add_edge(e0, e2)
+    num_deleted = locs.del_edges(e0, e1)
+    assert num_deleted == 2
+    assert e1 not in locs.edge_end(e0).edge_ends
+    assert len(locs.edge_end(e0).edge_ends) == 1
+    assert locs.edge_end(e0).edge_ends[0] == e2
+    with pytest.raises(KeyError):
+        locs.edge_end(e0)._del_edge_ends(locs.edge_end(e1))
 
 def test_direction_eq():
     dir1, dir2, dir3 = _make_directions()

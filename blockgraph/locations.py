@@ -13,11 +13,12 @@
 # limitations under the License.
 
 from __future__ import annotations
+from typing import Dict
 
 from colour import Color
 
 class _Block:
-    def __init__(self, block_id, *args, **kwargs):
+    def __init__(self, block_id: int, *args, **kwargs):
         self.block_id = block_id
 
         self.x = kwargs.get('x', 0)
@@ -28,7 +29,7 @@ class _Block:
         self.color = Color(kwargs.get('color', '#cccccc'))
         self.shape = kwargs.get('shape', 'box')
 
-        self.edge_ends = []
+        self._edge_ends = set()
 
     @property
     def coords(self):
@@ -38,8 +39,17 @@ class _Block:
     def size(self):
         return (self.width, self.height)
 
-    def add_edge_end(self, edge_end):
-        self.edge_ends.append(edge_end)
+    @property
+    def edge_ends(self):
+        return [edge_end.edge_end_id for edge_end in self._edge_ends]
+
+    def _add_edge_end(self, edge_end: _EdgeEnd):
+        self._edge_ends.add(edge_end)
+
+    def _del_edge_end(self, edge_end: _EdgeEnd):
+        if edge_end not in self._edge_ends:
+            raise KeyError('{} does not contain {} with id={}.'.format(self, 'edge_end', edge_end.edge_end_id))
+        self._edge_ends.remove(edge_end)
 
     def to_obj(self):
         return {
@@ -48,8 +58,11 @@ class _Block:
             'depth': self.depth,
             'color': self.color.hex_l,
             'shape': self.shape,
-            'edge_ends': [edge_end.edge_end_id for edge_end in self.edge_ends],
+            'edge_ends': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
+
+    def __hash__(self):
+        return self.block_id
 
     def __str__(self):
         return 'B{} ({},{}) {}x{} [{}]'.format(
@@ -58,7 +71,7 @@ class _Block:
             self.y,
             self.width,
             self.height,
-            ','.join(str(edge_end.edge_end_id) for edge_end in self.edge_ends),
+            ','.join(str(edge_end.edge_end_id) for edge_end in self._edge_ends),
         )
 
     def __repr__(self):
@@ -66,58 +79,78 @@ class _Block:
             self.block_id,
         )
 
+class _Direction:
+    VALID_DIRECTIONS = [
+        'up',
+        'down',
+        'left',
+        'right',
+    ]
+
+    def __init__(self, direction: str):
+        if direction not in self.VALID_DIRECTIONS:
+            raise ValueError('{} is not a recognized direction.'.format(direction))
+        self._direction = direction
+
+    def __eq__(self, other):
+        if isinstance(other, _Direction):
+            return self._direction == other._direction
+        elif isinstance(other, str):
+            return self._direction == other
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self._direction)
+
+    def __str__(self):
+        return self._direction
+
+    def __repr__(self):
+        return self._direction
+
 class _EdgeEnd:
-    class Direction:
-        VALID_DIRECTIONS = [
-            'up',
-            'down',
-            'left',
-            'right',
-        ]
-
-        def __init__(self, direction):
-            if direction not in self.VALID_DIRECTIONS:
-                raise ValueError('{} is not a recognized direction.'.format(direction))
-            self._direction = direction
-
-        def __eq__(self, other):
-            if isinstance(other, _EdgeEnd.Direction):
-                return self._direction == other._direction
-            elif isinstance(other, str):
-                return self._direction == other
-            return NotImplemented
-
-        def __hash__(self):
-            return hash(self._direction)
-
-        def __str__(self):
-            return self._direction
-
-        def __repr__(self):
-            return self._direction
-
-    def __init__(self, edge_end_id, *args, **kwargs):
+    def __init__(self, edge_end_id: int, *args, **kwargs):
         self.edge_end_id = edge_end_id
 
         self.x = kwargs.get('x', 0)
         self.y = kwargs.get('y', 0)
-        self.direction = _EdgeEnd.Direction(kwargs.get('direction', 'up'))
+        self.direction = _Direction(kwargs.get('direction', 'up'))
 
-        self.edge_ends = []
+        self._edge_ends: Dict[_EdgeEnd,int] = {}
 
     @property
     def coords(self):
         return (self.x, self.y)
 
-    def add_edge_dest(self, to_edge_end):
-        self.edge_ends.append(to_edge_end)
+    @property
+    def edge_ends_iter(self):
+        for edge_end, count in self._edge_ends.items():
+            for i in range(count):
+                yield edge_end.edge_end_id
+
+    @property
+    def edge_ends(self):
+        return list(self.edge_ends_iter)
+
+    def _add_edge_end(self, to_edge_end: _EdgeEnd):
+        if to_edge_end not in self._edge_ends:
+            self._edge_ends[to_edge_end] = 0
+        self._edge_ends[to_edge_end] += 1
+
+    def _del_edge_ends(self, to_edge_end: _EdgeEnd):
+        if to_edge_end not in self._edge_ends:
+            raise KeyError('{} does not contain {} with id={}.'.format(self, 'edge_end', to_edge_end.edge_end_id))
+        return self._edge_ends.pop(to_edge_end)
 
     def to_obj(self):
         return {
             'x': self.x,'y': self.y,
             'direction': str(self.direction),
-            'edge_ends': [edge_end.edge_end_id for edge_end in self.edge_ends],
+            'edge_ends': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
+
+    def __hash__(self):
+        return self.edge_end_id
 
     def __str__(self):
         return 'E{} ({},{}) {} -> [{}]'.format(
@@ -125,7 +158,7 @@ class _EdgeEnd:
             self.x,
             self.y,
             self.direction,
-            ','.join(str(edge_end.edge_end_id) for edge_end in self.edge_ends),
+            ','.join(str(edge_end.edge_end_id) for edge_end in self._edge_ends),
         )
 
     def __repr__(self):
@@ -154,7 +187,7 @@ class Locations:
         self._blocks[new_block_id] = _Block(new_block_id, *args, **kwargs)
         return new_block_id
 
-    def add_edge_end(self, block_id=None, *args, **kwargs):
+    def add_edge_end(self, block_id: Optional[int] = None, *args, **kwargs):
         new_edge_end_id = self._edge_ends_id_counter
         self._edge_ends_id_counter += 1
 
@@ -164,27 +197,37 @@ class Locations:
 
         return new_edge_end_id
 
-    def assign_edge_to_block(self, edge_end_id, block_id):
-        self.block(block_id).add_edge_end(self.edge_end(edge_end_id))
+    def assign_edge_to_block(self, edge_end_id: int, block_id: int):
+        self.block(block_id)._add_edge_end(self.edge_end(edge_end_id))
 
-    def add_edge(self, from_edge_end_id, to_edge_end_id):
-        self.edge_end(from_edge_end_id).add_edge_dest(self.edge_end(to_edge_end_id))
+    def add_edge(self, from_edge_end_id: int, to_edge_end_id: int):
+        self.edge_end(from_edge_end_id)._add_edge_end(self.edge_end(to_edge_end_id))
 
-    def block(self, block_id):
-        if block_id not in self._blocks:
-            raise KeyError('{} does not contain block with id={}.'.format(self, block_id))
+    def block(self, block_id: int):
+        self._check_exists(self._blocks, block_id, 'block')
         return self._blocks[block_id]
 
-    def edge_end(self, edge_end_id):
-        if edge_end_id not in self._edge_ends:
-            raise KeyError('{} does not contain edge_end with id={}.'.format(self, edge_end_id))
+    def edge_end(self, edge_end_id: int):
+        self._check_exists(self._edge_ends, edge_end_id, 'edge_end')
         return self._edge_ends[edge_end_id]
 
-    def del_block(self, block_id):
+    def del_block(self, block_id: int):
         del self._blocks[block_id]
     
-    def del_edge_end(self, edge_end_id):
+    def del_edge_end(self, edge_end_id: int):
         del self._edge_ends[edge_end_id]
+
+    def del_edges(self, from_edge_end_id: int, to_edge_end_id: int):
+        ''' Returns number of edges deleted.
+        '''
+        return self.edge_end(from_edge_end_id)._del_edge_ends(self.edge_end(to_edge_end_id))
+
+    def del_edge_end_from_block(self, edge_end_id: int, block_id: int):
+        self.block(block_id)._del_edge_end(self.edge_end(edge_end_id))
+
+    def _check_exists(self, items, item_id, item_str):
+        if item_id not in items:
+            raise KeyError('{} does not contain {} with id={}.'.format(self, item_str, item_id))
 
     def to_obj(self):
         obj = {
