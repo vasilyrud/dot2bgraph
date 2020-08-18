@@ -17,6 +17,99 @@ from typing import Dict
 
 from colour import Color
 
+class Locations:
+    ''' Object for all locations of blocks and edges
+    in the graph.
+
+    Define dedicated adder functions rather than simply 
+    using sub-object's constructors in order to keep 
+    track of IDs from the Locations object.
+    '''
+    def __init__(self):
+        self._blocks_id_counter = 0
+        self._blocks = {} # Use dict as Blocks can be deleted
+        self._edge_ends_id_counter = 0
+        self._edge_ends = {}
+
+    def add_block(self, *args, **kwargs):
+        new_block_id = self._blocks_id_counter
+        self._blocks_id_counter += 1
+
+        self._blocks[new_block_id] = _Block(new_block_id, *args, **kwargs)
+        return new_block_id
+
+    def add_edge_end(self, block_id: Optional[int] = None, *args, **kwargs):
+        new_edge_end_id = self._edge_ends_id_counter
+        self._edge_ends_id_counter += 1
+
+        self._edge_ends[new_edge_end_id] = _EdgeEnd(new_edge_end_id, *args, **kwargs)
+        if block_id is not None:
+            self.assign_edge_to_block(new_edge_end_id, block_id)
+
+        return new_edge_end_id
+
+    def assign_edge_to_block(self, edge_end_id: int, block_id: int):
+        self.block(block_id)._add_edge_end(self.edge_end(edge_end_id))
+
+    def add_edge(self, from_edge_end_id: int, to_edge_end_id: int):
+        self.edge_end(from_edge_end_id)._add_edge_end(self.edge_end(to_edge_end_id))
+
+    def block(self, block_id: int):
+        self._check_exists(self._blocks, block_id, 'block')
+        return self._blocks[block_id]
+
+    def edge_end(self, edge_end_id: int):
+        self._check_exists(self._edge_ends, edge_end_id, 'edge_end')
+        return self._edge_ends[edge_end_id]
+
+    def del_block(self, block_id: int):
+        del self._blocks[block_id]
+    
+    def del_edge_end(self, edge_end_id: int):
+        del self._edge_ends[edge_end_id]
+
+    def del_edges(self, from_edge_end_id: int, to_edge_end_id: int):
+        ''' Returns number of edges deleted.
+        '''
+        return self.edge_end(from_edge_end_id)._del_edge_ends(self.edge_end(to_edge_end_id))
+
+    def del_edge_end_from_block(self, edge_end_id: int, block_id: int):
+        self.block(block_id)._del_edge_end(self.edge_end(edge_end_id))
+
+    def _check_exists(self, items, item_id, item_str):
+        if item_id not in items:
+            raise KeyError('{} does not contain {} with id={}.'.format(self, item_str, item_id))
+
+    def to_obj(self):
+        obj = {
+            'blocks': {
+                block_id: block.to_obj() 
+                for block_id, block in self._blocks.items()
+            },
+            'edge_ends': {
+                edge_end_id: edge_end.to_obj() 
+                for edge_end_id, edge_end in self._edge_ends.items()
+            },
+        }
+
+        return obj
+
+    def print_locations(self):
+        print('Blocks:')
+        for block in self._blocks.values():
+            print('  {}'.format(block))
+        
+        print('EdgeEnds:')
+        for edge_end in self._edge_ends.values():
+            print('  {}'.format(edge_end))
+
+    def __repr__(self):
+        return 'Locations<{}>#B={},#E={}'.format(
+            hex(id(self)),
+            len(self._blocks),
+            len(self._edge_ends),
+        )
+
 class _Block:
     def __init__(self, block_id: int, *args, **kwargs):
         self.block_id = block_id
@@ -164,97 +257,4 @@ class _EdgeEnd:
     def __repr__(self):
         return 'E{}'.format(
             self.edge_end_id,
-        )
-
-class Locations:
-    ''' Object for all locations of blocks and edges
-    in the graph.
-
-    Define dedicated adder functions rather than simply 
-    using sub-object's constructors in order to keep 
-    track of IDs from the Locations object.
-    '''
-    def __init__(self):
-        self._blocks_id_counter = 0
-        self._blocks = {} # Use dict as Blocks can be deleted
-        self._edge_ends_id_counter = 0
-        self._edge_ends = {}
-
-    def add_block(self, *args, **kwargs):
-        new_block_id = self._blocks_id_counter
-        self._blocks_id_counter += 1
-
-        self._blocks[new_block_id] = _Block(new_block_id, *args, **kwargs)
-        return new_block_id
-
-    def add_edge_end(self, block_id: Optional[int] = None, *args, **kwargs):
-        new_edge_end_id = self._edge_ends_id_counter
-        self._edge_ends_id_counter += 1
-
-        self._edge_ends[new_edge_end_id] = _EdgeEnd(new_edge_end_id, *args, **kwargs)
-        if block_id is not None:
-            self.assign_edge_to_block(new_edge_end_id, block_id)
-
-        return new_edge_end_id
-
-    def assign_edge_to_block(self, edge_end_id: int, block_id: int):
-        self.block(block_id)._add_edge_end(self.edge_end(edge_end_id))
-
-    def add_edge(self, from_edge_end_id: int, to_edge_end_id: int):
-        self.edge_end(from_edge_end_id)._add_edge_end(self.edge_end(to_edge_end_id))
-
-    def block(self, block_id: int):
-        self._check_exists(self._blocks, block_id, 'block')
-        return self._blocks[block_id]
-
-    def edge_end(self, edge_end_id: int):
-        self._check_exists(self._edge_ends, edge_end_id, 'edge_end')
-        return self._edge_ends[edge_end_id]
-
-    def del_block(self, block_id: int):
-        del self._blocks[block_id]
-    
-    def del_edge_end(self, edge_end_id: int):
-        del self._edge_ends[edge_end_id]
-
-    def del_edges(self, from_edge_end_id: int, to_edge_end_id: int):
-        ''' Returns number of edges deleted.
-        '''
-        return self.edge_end(from_edge_end_id)._del_edge_ends(self.edge_end(to_edge_end_id))
-
-    def del_edge_end_from_block(self, edge_end_id: int, block_id: int):
-        self.block(block_id)._del_edge_end(self.edge_end(edge_end_id))
-
-    def _check_exists(self, items, item_id, item_str):
-        if item_id not in items:
-            raise KeyError('{} does not contain {} with id={}.'.format(self, item_str, item_id))
-
-    def to_obj(self):
-        obj = {
-            'blocks': {
-                block_id: block.to_obj() 
-                for block_id, block in self._blocks.items()
-            },
-            'edge_ends': {
-                edge_end_id: edge_end.to_obj() 
-                for edge_end_id, edge_end in self._edge_ends.items()
-            },
-        }
-
-        return obj
-
-    def print_locations(self):
-        print('Blocks:')
-        for block in self._blocks.values():
-            print('  {}'.format(block))
-        
-        print('EdgeEnds:')
-        for edge_end in self._edge_ends.values():
-            print('  {}'.format(edge_end))
-
-    def __repr__(self):
-        return 'Locations<{}>#B={},#E={}'.format(
-            hex(id(self)),
-            len(self._blocks),
-            len(self._edge_ends),
         )
