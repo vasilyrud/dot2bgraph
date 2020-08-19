@@ -154,6 +154,9 @@ class _Block:
             'edge_ends': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
 
+    def __eq__(self, other):
+        return self.block_id == other.block_id
+
     def __hash__(self):
         return self.block_id
 
@@ -241,6 +244,9 @@ class _EdgeEnd:
             'direction': str(self.direction),
             'edge_ends': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
+
+    def __eq__(self, other):
+        return self.edge_end_id == other.edge_end_id
 
     def __hash__(self):
         return self.edge_end_id

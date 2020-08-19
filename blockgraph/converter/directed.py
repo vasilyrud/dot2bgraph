@@ -53,8 +53,7 @@ def _add_edges(
         from_node = anodes_to_nodes[asource]
         to_node   = anodes_to_nodes[adest]
 
-        from_node.add_next(to_node)
-        to_node.add_prev(from_node)
+        from_node.add_edge(to_node)
 
 def _agraph2regions(agraph: AGraph):
     anodes_to_nodes: ANodeToNode = {}

@@ -31,10 +31,17 @@ class Node:
         self.prev = []
         self.next = []
 
-    def add_next(self, next_node: Node):
+    def add_edge(self, to_node: Node):
+        ''' "self" is the from_node from which
+        the edge is made.
+        '''
+        self._add_next(to_node)
+        to_node._add_prev(self)
+
+    def _add_next(self, next_node: Node):
         self.next.append(next_node)
 
-    def add_prev(self, prev_node: Node):
+    def _add_prev(self, prev_node: Node):
         self.prev.append(prev_node)
 
     def nodes_iter(self) -> Iterable[Node]:
