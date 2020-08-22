@@ -77,14 +77,14 @@ def _regions2locations(base_region: Region):
 
 def dot2locations(dot: str) -> Locations:
 
+    agraph = AGraph(string=dot)
+
     # print('VAS nodes')
     # print(agraph.nodes())
 
     # print('VAS subg')
     # print(agraph.subgraphs()[0])
     # print(agraph.subgraphs()[0].subgraphs()[0])
-
-    agraph = AGraph(string=dot)
 
     base_region = _agraph2regions(agraph)
     base_region.print_nodes()

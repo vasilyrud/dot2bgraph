@@ -25,11 +25,15 @@ class Node:
         *args, **kwargs
     ):
         self.name = name
-        self.in_region = None if in_region is None else weakref.ref(in_region)
+        self._in_region = None if in_region is None else weakref.ref(in_region)
         self.nodes = [] # Empty for non-region
 
         self.prev = []
         self.next = []
+
+    @property
+    def in_region(self):
+        return None if self._in_region is None else self._in_region()
 
     def add_edge(self, to_node: Node):
         ''' "self" is the from_node from which
@@ -70,10 +74,7 @@ class Node:
         ''' Is this node within the same region as self.
         Cannot be another local node if in top-level.
         '''
-        if self.in_region is None:
-            return False
-
-        return node in self.in_region().nodes
+        return False if self.in_region is None else (node in self.in_region.nodes)
 
     def _local_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
         return [n for n in nodes if self._is_local_node(n)]

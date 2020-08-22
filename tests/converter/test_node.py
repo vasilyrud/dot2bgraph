@@ -1,17 +1,53 @@
 import pytest
 
+from pygraphviz import AGraph
+
 from bgraph.blockgraph.converter.node import Node, Region
 
+def _make_nodes():
+    n1 = Node('node1')
+    n2 = Node('node2')
+    return n1, n2
+
+def _make_agraphs():
+    a1 = AGraph(name='ag', strict=False, directed=True)
+    a2 = a1.add_subgraph(name='subg')
+    return a1, a2
+
+def _make_regions():
+    a1, a2 = _make_agraphs()
+    r1 = Region(a1)
+    r2 = Region(a2, r1)
+    return r1, r2
+
 def test_create_node():
-    n = Node('abc')
-    assert n.name == 'abc'
-    assert len(n.nodes) == 0
+    n1 = Node('node1')
+    assert n1.name == 'node1'
+    assert len(n1.nodes) == 0
 
 def test_create_region():
-    assert True
+    a1, _ = _make_agraphs()
+    r1 = Region(a1)
+    assert r1.agraph == a1
+    assert r1.name == 'ag'
 
-def test_create_node_in_region():
-    assert True
+def test_in_region():
+    r1, r2 = _make_regions()
+    assert r1.in_region is None
+    assert r2.in_region == r1
+
+def test_create_region_with_node():
+    r1, _ = _make_regions()
+    n1 = Node('node1', in_region=r1)
+    assert n1.in_region == r1
+
+def test_add_node():
+    r1, _ = _make_regions()
+    n1, n2 = _make_nodes()
+    r1.add_node(n1)
+    r1.add_node(n2)
+    assert n1 in r1.nodes and n2 in r1.nodes
+    assert len(r1.nodes) == 2
 
 def test_add_edge():
     a = Node('a')
