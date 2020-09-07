@@ -4,11 +4,6 @@ from pygraphviz import AGraph
 
 from bgraph.blockgraph.converter.node import Node, Region
 
-def _make_nodes():
-    n1 = Node('node1')
-    n2 = Node('node2')
-    return n1, n2
-
 def _make_agraphs():
     a1 = AGraph(name='ag', strict=False, directed=True)
     a2 = a1.add_subgraph(name='subg')
@@ -43,7 +38,8 @@ def test_create_region_with_node():
 
 def test_add_node_to_region():
     r1, r2 = _make_regions()
-    n1, n2 = _make_nodes()
+    n1 = Node('node1')
+    n2 = Node('node2')
     n1.in_region = r1
     n2.in_region = r1
     assert n1 in r1.nodes and n2 in r1.nodes and r2 in r1.nodes
@@ -94,3 +90,37 @@ def test_local_nodes():
     assert x in a.other_next and x not in a.local_next
     assert c in a.local_prev and c not in a.other_prev
     assert y in a.other_prev and y not in a.local_prev
+
+def test_node_dimensions_default():
+    a = Node('a')
+    assert a.width == 1
+    assert a.height == 1
+
+def test_node_dimensions_local():
+    r1, r2 = _make_regions()
+    a = Node('a', r1)
+    b = Node('b', r1)
+    c = Node('c', r1)
+    a.add_edge(b)
+    assert a.width == 1
+    a.add_edge(c)
+    assert a.width == 2
+    b.add_edge(c)
+    assert c.width == 2
+    assert a.height == 1
+    assert c.height == 1
+
+def test_node_dimensions_other():
+    r1, r2 = _make_regions()
+    a = Node('a', r1)
+    x = Node('x', r2)
+    y = Node('y', r2)
+    a.add_edge(x)
+    assert a.height == 1
+    a.add_edge(y)
+    assert a.height == 2
+    a.add_edge(y)
+    assert y.height == 2
+    assert a.width == 1
+    assert y.width == 1
+
