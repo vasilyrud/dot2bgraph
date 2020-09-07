@@ -41,13 +41,14 @@ def test_create_region_with_node():
     n1 = Node('node1', in_region=r1)
     assert n1.in_region == r1
 
-def test_add_node():
-    r1, _ = _make_regions()
+def test_add_node_to_region():
+    r1, r2 = _make_regions()
     n1, n2 = _make_nodes()
-    r1.add_node(n1)
-    r1.add_node(n2)
-    assert n1 in r1.nodes and n2 in r1.nodes
-    assert len(r1.nodes) == 2
+    n1.in_region = r1
+    n2.in_region = r1
+    assert n1 in r1.nodes and n2 in r1.nodes and r2 in r1.nodes
+    assert n1.in_region == r1 and n2.in_region == r1 and r2.in_region == r1
+    assert len(r1.nodes) == 3
 
 def test_add_edge():
     a = Node('a')
@@ -61,3 +62,12 @@ def test_add_edge():
     assert a in b.prev
     assert len(c.prev) == 1 and len(c.next) == 0
     assert a in c.prev
+
+def test_nodes_iter():
+    r1, r2 = _make_regions()
+    n2 = Node('node2', in_region=r1)
+    n1 = Node('node1', in_region=r1)
+    r1_nodes = list(r1.nodes_iter())
+    assert r1_nodes[0] == n1
+    assert r1_nodes[1] == n2
+    assert r1_nodes[2] == r2

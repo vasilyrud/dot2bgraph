@@ -37,12 +37,10 @@ def _add_regions_nodes(
 ) -> None:
     for anode in _direct_nodes(cur_region.agraph):
         node = Node(anode, cur_region)
-        cur_region.add_node(node)
         anodes_to_nodes[anode] = node
 
     for sub_agraph in cur_region.agraph.subgraphs_iter():
         sub_region = Region(sub_agraph, cur_region)
-        cur_region.add_node(sub_region)
         _add_regions_nodes(sub_region, anodes_to_nodes)
 
 def _add_edges(

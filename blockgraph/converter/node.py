@@ -25,8 +25,10 @@ class Node:
         *args, **kwargs
     ):
         self.name = name
-        self._in_region = None if in_region is None else weakref.ref(in_region)
-        self.nodes = [] # Empty for non-region
+        self.in_region = in_region
+
+        self.is_region = False
+        self.nodes = set()
 
         self.prev = []
         self.next = []
@@ -34,6 +36,12 @@ class Node:
     @property
     def in_region(self):
         return None if self._in_region is None else self._in_region()
+
+    @in_region.setter
+    def in_region(self, in_region: Optional[Region] = None):
+        self._in_region = None if in_region is None else weakref.ref(in_region)
+        if self.in_region is not None:
+            self.in_region._add_node(self)
 
     def add_edge(self, to_node: Node):
         ''' "self" is the from_node from which
@@ -99,10 +107,6 @@ class Node:
         return self._other_nodes(self.prev)
 
     @property
-    def is_region(self) -> bool:
-        return len(self.nodes) > 0
-
-    @property
     def width(self) -> int:
         return max(1, len(self.local_prev), len(self.local_next))
 
@@ -135,9 +139,10 @@ class Region(Node):
     ):
         self.agraph = agraph
         super().__init__(agraph.get_name(), in_region)
+        self.is_region = True
 
-    def add_node(self, node: Node) -> None:
-        self.nodes.append(node)
+    def _add_node(self, node: Node) -> None:
+        self.nodes.add(node)
 
     @property
     def width(self) -> int:
