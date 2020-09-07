@@ -71,3 +71,26 @@ def test_nodes_iter():
     assert r1_nodes[0] == n1
     assert r1_nodes[1] == n2
     assert r1_nodes[2] == r2
+
+def test_is_local_node():
+    r1, r2 = _make_regions()
+    n1 = Node('node1', in_region=r1)
+    n2 = Node('node2', in_region=r2)
+    assert not n1._is_local_node(n2)
+    assert n1._is_local_node(r2)
+
+def test_local_nodes():
+    r1, r2 = _make_regions()
+    a = Node('a', r1)
+    b = Node('b', r1)
+    c = Node('c', r1)
+    x = Node('x', r2)
+    y = Node('y', r2)
+    a.add_edge(b)
+    a.add_edge(x)
+    c.add_edge(a)
+    y.add_edge(a)
+    assert b in a.local_next and b not in a.other_next
+    assert x in a.other_next and x not in a.local_next
+    assert c in a.local_prev and c not in a.other_prev
+    assert y in a.other_prev and y not in a.local_prev

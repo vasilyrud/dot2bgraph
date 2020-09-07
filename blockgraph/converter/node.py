@@ -120,7 +120,7 @@ class Node:
         '''
         return ','.join(node.name for node in nodes)
 
-    def __repr__(self):
+    def __str__(self):
         return '{} <{}x{}> ({})({}) [{}][{}]'.format(
             self.name, 
             self.width,
@@ -129,6 +129,11 @@ class Node:
             self._node_names(self.local_next),
             self._node_names(self.other_prev),
             self._node_names(self.other_next),
+        )
+
+    def __repr__(self):
+        return '{}'.format(
+            self.name, 
         )
 
 class Region(Node):
