@@ -28,10 +28,15 @@ class Node:
         self.in_region = in_region
 
         self.is_region = False
-        self.nodes = set()
 
         self.prev = []
         self.next = []
+
+    def _print_node(self, depth):
+        print('{}{}'.format(depth*'  ', self))
+
+    def print_nodes(self, depth: int = 0):
+        self._print_node(depth)
 
     @property
     def in_region(self):
@@ -55,28 +60,6 @@ class Node:
 
     def _add_prev(self, prev_node: Node):
         self.prev.append(prev_node)
-
-    def nodes_iter(self) -> Iterable[Node]:
-        ''' Return first the individual nodes in this region
-        and then the sub-regions, all alphabetically.
-        '''
-        for node in sorted(
-            filter(lambda n: not n.is_region, self.nodes), 
-            key=lambda n: n.name
-        ):
-            yield node
-
-        for node in sorted(
-            filter(lambda n: n.is_region, self.nodes), 
-            key=lambda n: n.name
-        ):
-            yield node
-
-    def print_nodes(self, depth: int = 0):
-        print('{}{}'.format(depth*'  ', self))
-
-        for node in self.nodes_iter():
-            node.print_nodes(depth+1)
 
     def _is_local_node(self, node: Node) -> bool:
         ''' Is this node within the same region as self.
@@ -145,9 +128,52 @@ class Region(Node):
         self.agraph = agraph
         super().__init__(agraph.get_name(), in_region)
         self.is_region = True
+        self.nodes = set()
 
     def _add_node(self, node: Node) -> None:
         self.nodes.add(node)
+
+    def nodes_iter(self) -> Iterable[Node]:
+        ''' Return first the individual nodes in this region
+        and then the sub-regions, all alphabetically.
+        '''
+        for node in sorted(
+            filter(lambda n: not n.is_region, self.nodes), 
+            key=lambda n: n.name
+        ):
+            yield node
+
+        for node in sorted(
+            filter(lambda n: n.is_region, self.nodes), 
+            key=lambda n: n.name
+        ):
+            yield node
+
+    def print_nodes(self, depth: int = 0):
+        self._print_node(depth)
+
+        for node in self.nodes_iter():
+            node.print_nodes(depth+1)
+
+    @property
+    def is_empty(self):
+        return len(self.nodes) == 0
+
+    @property
+    def sources(self):
+        assert not self.is_empty, 'Cannot get sources of a {} with no nodes'.format(type(self).__name__)
+        sources = []
+
+        # Get nodes that are "pure" sources.
+        for node in self.nodes:
+            if node.prev: continue
+            sources.append(node)
+
+        if sources: return sources
+
+        # Pick one out of nodes with fewest inward connections.
+
+        # Pick one out of all nodes.
 
     @property
     def width(self) -> int:

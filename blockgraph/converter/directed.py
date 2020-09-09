@@ -66,6 +66,8 @@ def _regions2locations(base_region: Region):
     locations = Locations()
 
     # Determine sources and sinks
+    
+
     # Determine cur_region depth
     # Determine cur_region width
     # Place nodes in the region

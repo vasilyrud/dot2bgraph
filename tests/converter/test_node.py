@@ -18,13 +18,13 @@ def _make_regions():
 def test_create_node():
     n1 = Node('node1')
     assert n1.name == 'node1'
-    assert len(n1.nodes) == 0
 
 def test_create_region():
     a1, _ = _make_agraphs()
     r1 = Region(a1)
     assert r1.agraph == a1
     assert r1.name == 'ag'
+    assert len(r1.nodes) == 0
 
 def test_in_region():
     r1, r2 = _make_regions()
@@ -124,3 +124,19 @@ def test_node_dimensions_other():
     assert a.width == 1
     assert y.width == 1
 
+def test_is_region():
+    r1, _ = _make_regions()
+    n1 = Node('n1')
+    assert r1.is_region
+    assert not n1.is_region
+
+def test_is_empty():
+    _, r2 = _make_regions()
+    assert r2.is_empty
+    n1 = Node('n1', r2)
+    assert not r2.is_empty
+
+def test_sources_empty_region():
+    _, r2 = _make_regions()
+    with pytest.raises(AssertionError):
+        r2.sources
