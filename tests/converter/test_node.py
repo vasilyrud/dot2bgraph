@@ -140,3 +140,39 @@ def test_sources_empty_region():
     _, r2 = _make_regions()
     with pytest.raises(AssertionError):
         r2.sources
+
+def test_sources_pure():
+    _, r2 = _make_regions()
+    a = Node('a', r2)
+    b = Node('b', r2)
+    c = Node('c', r2)
+    d = Node('d', r2)
+    a.add_edge(b)
+    c.add_edge(d)
+    srcs = r2.sources
+    assert len(srcs) == 2
+    assert srcs[0] == a
+
+def test_sources_that_are_sinks():
+    _, r2 = _make_regions()
+    a = Node('a', r2)
+    b = Node('b', r2)
+    srcs = r2.sources
+    assert len(srcs) == 2
+    assert srcs[0] == a
+
+def test_sources_not_pure():
+    _, r2 = _make_regions()
+    a = Node('a', r2)
+    b = Node('b', r2)
+    a.add_edge(b)
+    b.add_edge(a)
+    srcs = r2.sources
+    assert len(srcs) == 1
+    assert srcs[0] == a
+
+def test_sources_max_outward():
+    assert True
+
+def test_sources_min_inward():
+    assert True
