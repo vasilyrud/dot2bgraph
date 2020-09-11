@@ -172,7 +172,16 @@ def test_sources_not_pure():
     assert srcs[0] == a
 
 def test_sources_max_outward():
-    assert True
-
-def test_sources_min_inward():
-    assert True
+    _, r2 = _make_regions()
+    a = Node('a', r2)
+    b = Node('b', r2)
+    c = Node('c', r2)
+    d = Node('d', r2)
+    a.add_edge(b)
+    a.add_edge(c)
+    b.add_edge(a)
+    d.add_edge(c)
+    c.add_edge(d)
+    srcs = r2.sources
+    assert len(srcs) == 1
+    assert srcs[0] == a
