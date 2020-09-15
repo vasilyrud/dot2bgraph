@@ -1,6 +1,6 @@
 import pytest
 
-from bgraph.blockgraph.locations import Locations, _Block, _EdgeEnd, _Direction
+from blockgraph.locations import Locations, _Block, _EdgeEnd, _Direction
 
 def _make_blocks(locs: Locations):
     b0 = locs.add_block()

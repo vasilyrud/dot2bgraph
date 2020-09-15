@@ -2,7 +2,7 @@ import pytest
 
 from pygraphviz import AGraph
 
-from bgraph.blockgraph.converter.node import Node, Region
+from blockgraph.converter.node import Node, Region
 
 def _make_agraphs():
     a1 = AGraph(name='ag', strict=False, directed=True)

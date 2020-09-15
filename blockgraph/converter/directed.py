@@ -21,39 +21,81 @@ from blockgraph.converter.node import Node, Region
 from blockgraph.locations import Locations
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
+# RegionToAGraph = NewType('RegionToAGraph', Dict[str, Node])
 
-def _direct_nodes(agraph: AGraph) -> set:
-    all_nodes = set(agraph.nodes())
+def _sorted_subgraphs(agraph: AGraph) -> Iterable[AGraph]:
+    ''' Normally, graphviz sorts subgraphs by time 
+    when they were created, but there is a bug:
+    https://gitlab.com/graphviz/graphviz/-/issues/1767
+    which prevented this from happening.
+    For now, use alphabetical order.
+    '''
+    return sorted(agraph.subgraphs_iter(), key=lambda sg: sg.name)
+
+def _sub_agraph_nodes(agraph: AGraph) -> Set[str]:
+    ''' Nodes from all the subgraphs of agraph.
+    '''
     sub_agraph_nodes = set()
 
-    for sub_agraph in agraph.subgraphs_iter():
+    for sub_agraph in _sorted_subgraphs(agraph):
         sub_agraph_nodes.update(sub_agraph.nodes())
 
-    return all_nodes - sub_agraph_nodes
+    return sub_agraph_nodes
+
+def _direct_nodes(
+    agraph: AGraph, 
+    seen_sibling_nodes: Set[str]
+) -> Set[str]:
+    ''' Get only the nodes that are part of
+    the agraph itself, but not part of the
+    agraph's sub-graphs and not part of nodes
+    that have already been seen by its siblings.
+    '''
+    assert agraph is not None, 'AGraph is None'
+    all_nodes = set(agraph.nodes())
+
+    direct_nodes = all_nodes - _sub_agraph_nodes(agraph) - seen_sibling_nodes
+
+    seen_sibling_nodes |= set(all_nodes)
+
+    return direct_nodes
 
 def _add_regions_nodes(
     cur_region: Region,
     anodes_to_nodes: ANodeToNode,
+    in_seen_sibling_nodes: Optional[Set[str]] = None
 ) -> None:
-    for anode in _direct_nodes(cur_region.agraph):
+    ''' Create nodes in the cur_region and 
+    its sub-regions.
+    '''
+    seen_sibling_nodes = set() if in_seen_sibling_nodes is None else in_seen_sibling_nodes
+
+    for anode in _direct_nodes(cur_region.agraph, seen_sibling_nodes):
         node = Node(anode, cur_region)
         anodes_to_nodes[anode] = node
 
-    for sub_agraph in cur_region.agraph.subgraphs_iter():
+    sub_seen_sibling_nodes = set()
+    for sub_agraph in _sorted_subgraphs(cur_region.agraph):
         sub_region = Region(sub_agraph, cur_region)
-        _add_regions_nodes(sub_region, anodes_to_nodes)
+
+        _add_regions_nodes(sub_region, anodes_to_nodes, sub_seen_sibling_nodes)
 
 def _add_edges(
     base_region: Region, 
     anodes_to_nodes: ANodeToNode,
 ) -> None:
+    ''' Create all the edges in the agraph.
+    '''
     for asource, adest in base_region.agraph.edges_iter():
         from_node = anodes_to_nodes[asource]
         to_node   = anodes_to_nodes[adest]
 
         from_node.add_edge(to_node)
 
-def _agraph2regions(agraph: AGraph):
+def _agraph2regions(agraph: AGraph) -> Region:
+    ''' Create graph consisting of Regions
+    based on the graph consisting of AGraphs.
+    '''
     anodes_to_nodes: ANodeToNode = {}
     base_region = Region(agraph)
 
@@ -62,7 +104,7 @@ def _agraph2regions(agraph: AGraph):
 
     return base_region
 
-def _regions2locations(base_region: Region):
+def _regions2locations(base_region: Region) -> Locations:
     locations = Locations()
 
     # Determine sources and sinks
