@@ -135,7 +135,7 @@ class Region(Node):
 
     def nodes_iter(self) -> Iterable[Node]:
         ''' Return first the individual nodes in this region
-        and then the sub-regions, all alphabetically.
+        and then return the sub-regions, all alphabetically.
         '''
         for node in sorted(
             filter(lambda n: not n.is_region, self.nodes), 

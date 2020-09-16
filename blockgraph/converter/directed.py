@@ -60,15 +60,19 @@ def _direct_nodes(
 
     return direct_nodes
 
-def _add_regions_nodes(
-    cur_region: Region,
-    anodes_to_nodes: ANodeToNode,
-    in_seen_sibling_nodes: Optional[Set[str]] = None
+def _create_regions_nodes(
+    agraph: AGraph,
+    parent_region: Optional[Region] = None,
+    in_anodes_to_nodes: Optional[ANodeToNode] = None,
+    in_seen_sibling_nodes: Optional[Set[str]] = None,
 ) -> None:
     ''' Create nodes in the cur_region and 
     its sub-regions.
     '''
+    anodes_to_nodes = {} if in_anodes_to_nodes is None else in_anodes_to_nodes
     seen_sibling_nodes = set() if in_seen_sibling_nodes is None else in_seen_sibling_nodes
+
+    cur_region = Region(agraph, parent_region)
 
     for anode in _direct_nodes(cur_region.agraph, seen_sibling_nodes):
         node = Node(anode, cur_region)
@@ -76,11 +80,16 @@ def _add_regions_nodes(
 
     sub_seen_sibling_nodes = set()
     for sub_agraph in _sorted_subgraphs(cur_region.agraph):
-        sub_region = Region(sub_agraph, cur_region)
+        _create_regions_nodes(
+            sub_agraph, 
+            cur_region, 
+            anodes_to_nodes, 
+            sub_seen_sibling_nodes
+        )
 
-        _add_regions_nodes(sub_region, anodes_to_nodes, sub_seen_sibling_nodes)
+    return cur_region, anodes_to_nodes
 
-def _add_edges(
+def _create_edges(
     base_region: Region, 
     anodes_to_nodes: ANodeToNode,
 ) -> None:
@@ -96,11 +105,8 @@ def _agraph2regions(agraph: AGraph) -> Region:
     ''' Create graph consisting of Regions
     based on the graph consisting of AGraphs.
     '''
-    anodes_to_nodes: ANodeToNode = {}
-    base_region = Region(agraph)
-
-    _add_regions_nodes(base_region, anodes_to_nodes)
-    _add_edges(base_region, anodes_to_nodes)
+    base_region, anodes_to_nodes = _create_regions_nodes(agraph)
+    _create_edges(base_region, anodes_to_nodes)
 
     return base_region
 
