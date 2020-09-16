@@ -59,14 +59,44 @@ def test_add_edge():
     assert len(c.prev) == 1 and len(c.next) == 0
     assert a in c.prev
 
-def test_nodes_iter():
+def test_nodes():
     r1, r2 = _make_regions()
     n2 = Node('node2', in_region=r1)
     n1 = Node('node1', in_region=r1)
-    r1_nodes = list(r1.nodes_iter())
+    r1_nodes = r1.nodes
+    assert n1 in r1_nodes
+    assert n2 in r1_nodes
+    assert r2 in r1_nodes
+
+def test_nodes_map():
+    r1, r2 = _make_regions()
+    n2 = Node('node2', in_region=r1)
+    n1 = Node('node1', in_region=r1)
+    r1_nodes = r1.nodes_map
+    assert len(r1_nodes) == 3
+    assert r1_nodes['subg'] == r2
+    assert r1_nodes['node1'] == n1
+    assert r1_nodes['node2'] == n2
+
+def test_nodes_iter():
+    r1, r2 = _make_regions()
+    n2 = Node('z_node2', in_region=r1)
+    n1 = Node('z_node1', in_region=r1)
+    r1_nodes = list(r1.nodes_iter)
+    assert len(r1_nodes) == 3
     assert r1_nodes[0] == n1
     assert r1_nodes[1] == n2
     assert r1_nodes[2] == r2
+
+def test_nodes_sorted():
+    r1, r2 = _make_regions()
+    n2 = Node('z_node2', in_region=r1)
+    n1 = Node('z_node1', in_region=r1)
+    r1_nodes = list(r1.nodes_sorted)
+    assert len(r1_nodes) == 3
+    assert r1_nodes[0] == r2
+    assert r1_nodes[1] == n1
+    assert r1_nodes[2] == n2
 
 def test_is_local_node():
     r1, r2 = _make_regions()

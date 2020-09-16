@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Dict
 import weakref
 
 from pygraphviz import AGraph
@@ -128,11 +128,18 @@ class Region(Node):
         self.agraph = agraph
         super().__init__(agraph.get_name(), in_region)
         self.is_region = True
-        self.nodes = set()
+        self.nodes_map: Dict[str, Node] = {}
 
     def _add_node(self, node: Node) -> None:
-        self.nodes.add(node)
+        self.nodes_map[node.name] = node
 
+    @property
+    def nodes(self) -> Iterable[Node]:
+        ''' Nodes, not in any particular order.
+        '''
+        return self.nodes_map.values()
+
+    @property
     def nodes_iter(self) -> Iterable[Node]:
         ''' Return first the individual nodes in this region
         and then return the sub-regions, all alphabetically.
@@ -149,10 +156,17 @@ class Region(Node):
         ):
             yield node
 
+    @property
+    def nodes_sorted(self) -> Iterable[Node]:
+        ''' Return sorted nodes irregardless of whether they
+        are Nodes or Regions.
+        '''
+        return sorted(self.nodes, key=lambda n: n.name)
+
     def print_nodes(self, depth: int = 0):
         self._print_node(depth)
 
-        for node in self.nodes_iter():
+        for node in self.nodes_iter:
             node.print_nodes(depth+1)
 
     @property
@@ -160,16 +174,12 @@ class Region(Node):
         return len(self.nodes) == 0
 
     @property
-    def sorted_nodes(self):
-        return sorted(self.nodes, key=lambda n: n.name)
-
-    @property
     def sources(self):
         assert not self.is_empty, 'Cannot get sources of a {} with no nodes'.format(type(self).__name__)
         sources = []
 
         # Get all nodes that don't have inward connections.
-        for node in self.sorted_nodes:
+        for node in self.nodes_sorted:
             if node.prev: continue
             sources.append(node)
 
@@ -180,7 +190,7 @@ class Region(Node):
         min_inward  = min(len(node.prev) for node in self.nodes)
         max_outward = max(len(node.next) for node in self.nodes)
 
-        for node in self.sorted_nodes:
+        for node in self.nodes_sorted:
             if len(node.prev) != min_inward:  continue
             if len(node.next) != max_outward: continue
             sources.append(node)

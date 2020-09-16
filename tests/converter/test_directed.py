@@ -88,11 +88,11 @@ def test_anodes_to_nodes():
     agraph = AGraph(string=dot)
     base_region, anodes_to_nodes = _create_regions_nodes(agraph)
 
-    nodes_A = list(list(base_region.nodes)[0].nodes)
+    nodes_A = base_region.nodes_map['cluster_A'].nodes_map
     assert len(anodes_to_nodes) == 2
-    assert anodes_to_nodes[agraph.get_node('a')] in nodes_A
-    assert anodes_to_nodes[agraph.get_node('b')] in nodes_A
-    assert nodes_A[0] != nodes_A[1]
+    assert anodes_to_nodes[agraph.get_node('a')] in nodes_A.values()
+    assert anodes_to_nodes[agraph.get_node('b')] in nodes_A.values()
+    assert nodes_A['a'] != nodes_A['b']
 
 def test_create_regions_nodes_child():
     dot = '''
@@ -111,19 +111,17 @@ def test_create_regions_nodes_child():
     agraph = AGraph(string=dot)
     base_region, _ = _create_regions_nodes(agraph)
 
-    base_nodes = list(base_region.nodes_iter())
+    base_nodes = base_region.nodes_map
     assert len(base_nodes) == 2
-    assert base_nodes[0].name == 'x'
-    assert base_nodes[1].name == 'cluster_A'
+    assert 'x' in base_nodes and 'cluster_A' in base_nodes
 
-    nodes_A = list(base_nodes[1].nodes_iter())
+    nodes_A = base_nodes['cluster_A'].nodes_map
     assert len(nodes_A) == 2
-    assert nodes_A[0].name == 'a'
-    assert nodes_A[1].name == 'cluster_B'
+    assert 'a' in nodes_A and 'cluster_B' in nodes_A
 
-    nodes_B = list(nodes_A[1].nodes_iter())
+    nodes_B = nodes_A['cluster_B'].nodes_map
     assert len(nodes_B) == 1
-    assert nodes_B[0].name == 'b'
+    assert 'b' in nodes_B
 
 def test_create_regions_nodes_sibling():
     dot = '''
@@ -142,16 +140,45 @@ def test_create_regions_nodes_sibling():
     agraph = AGraph(string=dot)
     base_region, _ = _create_regions_nodes(agraph)
 
-    base_nodes = list(base_region.nodes_iter())
+    base_nodes = base_region.nodes_map
     assert len(base_nodes) == 3
-    assert base_nodes[0].name == 'x'
-    assert base_nodes[1].name == 'cluster_A'
-    assert base_nodes[2].name == 'cluster_B'
+    assert 'x' in base_nodes and 'cluster_A' in base_nodes and 'cluster_B' in base_nodes
 
-    nodes_A = list(base_nodes[1].nodes_iter())
+    nodes_A = base_nodes['cluster_A'].nodes_map
     assert len(nodes_A) == 1
-    assert nodes_A[0].name == 'a'
+    assert 'a' in nodes_A
 
-    nodes_B = list(base_nodes[2].nodes_iter())
+    nodes_B = base_nodes['cluster_B'].nodes_map
     assert len(nodes_B) == 1
-    assert nodes_B[0].name == 'b'
+    assert 'b' in nodes_B
+
+def test_create_regions_nodes_sibling_child():
+    dot = '''
+    digraph X {
+        subgraph cluster_A {
+            k -> l;
+            subgraph cluster_C {
+                l;
+            }
+        }
+        subgraph cluster_B {
+            k -> e;
+        }
+    }
+    '''
+    agraph = AGraph(string=dot)
+    base_region, _ = _create_regions_nodes(agraph)
+
+    base_nodes = base_region.nodes_map
+    nodes_A = base_nodes['cluster_A'].nodes_map
+    nodes_B = base_nodes['cluster_B'].nodes_map
+    nodes_C = base_nodes['cluster_A'].nodes_map['cluster_C'].nodes_map
+
+    assert len(base_nodes) == 2
+    assert len(nodes_A) == 2
+    assert len(nodes_B) == 1
+    assert len(nodes_C) == 1
+
+    assert 'k' in nodes_A
+    assert 'e' in nodes_B
+    assert 'l' in nodes_C
