@@ -32,19 +32,9 @@ def _sorted_subgraphs(agraph: AGraph) -> Iterable[AGraph]:
     '''
     return sorted(agraph.subgraphs_iter(), key=lambda sg: sg.name)
 
-def _sub_agraph_nodes(agraph: AGraph) -> Set[str]:
-    ''' Nodes from all the subgraphs of agraph.
-    '''
-    sub_agraph_nodes = set()
-
-    for sub_agraph in _sorted_subgraphs(agraph):
-        sub_agraph_nodes.update(sub_agraph.nodes())
-
-    return sub_agraph_nodes
-
 def _direct_nodes(
     agraph: AGraph, 
-    seen_sibling_nodes: Set[str]
+    seen_nodes: Set[str],
 ) -> Set[str]:
     ''' Get only the nodes that are part of
     the agraph itself, but not part of the
@@ -52,11 +42,14 @@ def _direct_nodes(
     that have already been seen by its siblings.
     '''
     assert agraph is not None, 'AGraph is None'
+
     all_nodes = set(agraph.nodes())
+    sub_agraph_nodes = set()
 
-    direct_nodes = all_nodes - _sub_agraph_nodes(agraph) - seen_sibling_nodes
+    for sub_agraph in _sorted_subgraphs(agraph):
+        sub_agraph_nodes.update(sub_agraph.nodes())
 
-    seen_sibling_nodes |= set(all_nodes)
+    direct_nodes = all_nodes - sub_agraph_nodes - seen_nodes
 
     return direct_nodes
 
@@ -64,27 +57,23 @@ def _create_regions_nodes(
     agraph: AGraph,
     parent_region: Optional[Region] = None,
     in_anodes_to_nodes: Optional[ANodeToNode] = None,
-    in_seen_sibling_nodes: Optional[Set[str]] = None,
 ) -> None:
     ''' Create nodes in the cur_region and 
     its sub-regions.
     '''
     anodes_to_nodes = {} if in_anodes_to_nodes is None else in_anodes_to_nodes
-    seen_sibling_nodes = set() if in_seen_sibling_nodes is None else in_seen_sibling_nodes
 
     cur_region = Region(agraph, parent_region)
 
-    for anode in _direct_nodes(cur_region.agraph, seen_sibling_nodes):
+    for anode in _direct_nodes(cur_region.agraph, set(anodes_to_nodes.keys())):
         node = Node(anode, cur_region)
         anodes_to_nodes[anode] = node
 
-    sub_seen_sibling_nodes = set()
     for sub_agraph in _sorted_subgraphs(cur_region.agraph):
         _create_regions_nodes(
             sub_agraph, 
             cur_region, 
             anodes_to_nodes, 
-            sub_seen_sibling_nodes
         )
 
     return cur_region, anodes_to_nodes
