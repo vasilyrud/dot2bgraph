@@ -99,6 +99,31 @@ def _agraph2regions(agraph: AGraph) -> Region:
 
     return base_region
 
+def _sources(region):
+    assert not region.is_empty, 'Cannot get sources of a {} with no nodes'.format(type(region).__name__)
+    sources = []
+
+    # Get all nodes that don't have inward connections.
+    for node in region.nodes_sorted:
+        if node.prev: continue
+        sources.append(node)
+
+    if sources: return sources
+
+    # Pick a node out of nodes with fewest inward connections 
+    # that also has the most outward connections.
+    min_inward  = min(len(node.prev) for node in region.nodes)
+    max_outward = max(len(node.next) for node in region.nodes)
+
+    for node in region.nodes_sorted:
+        if len(node.prev) != min_inward:  continue
+        if len(node.next) != max_outward: continue
+        sources.append(node)
+        break
+
+    assert sources, 'Somehow didn\'t find any source nodes.'
+    return sources
+
 def _regions2locations(base_region: Region) -> Locations:
     locations = Locations()
 

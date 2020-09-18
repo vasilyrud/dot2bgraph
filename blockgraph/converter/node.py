@@ -131,6 +131,7 @@ class Region(Node):
         self.nodes_map: Dict[str, Node] = {}
 
     def _add_node(self, node: Node) -> None:
+        assert node.name not in self.nodes_map
         self.nodes_map[node.name] = node
 
     @property
@@ -172,32 +173,6 @@ class Region(Node):
     @property
     def is_empty(self):
         return len(self.nodes) == 0
-
-    @property
-    def sources(self):
-        assert not self.is_empty, 'Cannot get sources of a {} with no nodes'.format(type(self).__name__)
-        sources = []
-
-        # Get all nodes that don't have inward connections.
-        for node in self.nodes_sorted:
-            if node.prev: continue
-            sources.append(node)
-
-        if sources: return sources
-
-        # Pick a node out of nodes with fewest inward connections 
-        # that also has the most outward connections.
-        min_inward  = min(len(node.prev) for node in self.nodes)
-        max_outward = max(len(node.next) for node in self.nodes)
-
-        for node in self.nodes_sorted:
-            if len(node.prev) != min_inward:  continue
-            if len(node.next) != max_outward: continue
-            sources.append(node)
-            break
-
-        assert sources, 'Somehow didn\'t find any source nodes.'
-        return sources
 
     @property
     def width(self) -> int:

@@ -2,8 +2,14 @@ import pytest
 
 from pygraphviz import AGraph
 
-from blockgraph.converter.directed import _sorted_subgraphs, _direct_nodes, _agraph2regions, _create_regions_nodes
+from blockgraph.converter.directed import _sorted_subgraphs, _direct_nodes, _agraph2regions, _create_regions_nodes, _sources
 from blockgraph.converter.node import Node, Region
+
+@pytest.fixture
+def region():
+    a = AGraph(name='ag', strict=False, directed=True)
+    r = Region(a)
+    return r
 
 def test_issue():
     ''' Graph illustrating graphviz bug that
@@ -288,3 +294,48 @@ def test_create_regions_nodes_both_sibling_children():
     assert 'b' in nodes_B
     assert 'c' in nodes_C
     assert 'd' in nodes_D
+
+def test_sources_empty_region(region):
+    with pytest.raises(AssertionError):
+        _sources(region)
+
+def test_sources_pure(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    d = Node('d', region)
+    a.add_edge(b)
+    c.add_edge(d)
+    srcs = _sources(region)
+    assert len(srcs) == 2
+    assert srcs[0] == a
+
+def test_sources_that_are_sinks(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    srcs = _sources(region)
+    assert len(srcs) == 2
+    assert srcs[0] == a
+
+def test_sources_not_pure(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    a.add_edge(b)
+    b.add_edge(a)
+    srcs = _sources(region)
+    assert len(srcs) == 1
+    assert srcs[0] == a
+
+def test_sources_max_outward(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    d = Node('d', region)
+    a.add_edge(b)
+    a.add_edge(c)
+    b.add_edge(a)
+    d.add_edge(c)
+    c.add_edge(d)
+    srcs = _sources(region)
+    assert len(srcs) == 1
+    assert srcs[0] == a

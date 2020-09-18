@@ -9,7 +9,8 @@ def _make_agraphs():
     a2 = a1.add_subgraph(name='subg')
     return a1, a2
 
-def _make_regions():
+@pytest.fixture
+def regions():
     a1, a2 = _make_agraphs()
     r1 = Region(a1)
     r2 = Region(a2, r1)
@@ -26,18 +27,18 @@ def test_create_region():
     assert r1.name == 'ag'
     assert len(r1.nodes) == 0
 
-def test_in_region():
-    r1, r2 = _make_regions()
+def test_in_region(regions):
+    r1, r2 = regions
     assert r1.in_region is None
     assert r2.in_region == r1
 
-def test_create_region_with_node():
-    r1, _ = _make_regions()
+def test_create_region_with_node(regions):
+    r1, _ = regions
     n1 = Node('node1', in_region=r1)
     assert n1.in_region == r1
 
-def test_add_node_to_region():
-    r1, r2 = _make_regions()
+def test_add_node_to_region(regions):
+    r1, r2 = regions
     n1 = Node('node1')
     n2 = Node('node2')
     n1.in_region = r1
@@ -59,8 +60,8 @@ def test_add_edge():
     assert len(c.prev) == 1 and len(c.next) == 0
     assert a in c.prev
 
-def test_nodes():
-    r1, r2 = _make_regions()
+def test_nodes(regions):
+    r1, r2 = regions
     n2 = Node('node2', in_region=r1)
     n1 = Node('node1', in_region=r1)
     r1_nodes = r1.nodes
@@ -68,8 +69,8 @@ def test_nodes():
     assert n2 in r1_nodes
     assert r2 in r1_nodes
 
-def test_nodes_map():
-    r1, r2 = _make_regions()
+def test_nodes_map(regions):
+    r1, r2 = regions
     n2 = Node('node2', in_region=r1)
     n1 = Node('node1', in_region=r1)
     r1_nodes = r1.nodes_map
@@ -78,8 +79,8 @@ def test_nodes_map():
     assert r1_nodes['node1'] == n1
     assert r1_nodes['node2'] == n2
 
-def test_nodes_iter():
-    r1, r2 = _make_regions()
+def test_nodes_iter(regions):
+    r1, r2 = regions
     n2 = Node('z_node2', in_region=r1)
     n1 = Node('z_node1', in_region=r1)
     r1_nodes = list(r1.nodes_iter)
@@ -88,8 +89,8 @@ def test_nodes_iter():
     assert r1_nodes[1] == n2
     assert r1_nodes[2] == r2
 
-def test_nodes_sorted():
-    r1, r2 = _make_regions()
+def test_nodes_sorted(regions):
+    r1, r2 = regions
     n2 = Node('z_node2', in_region=r1)
     n1 = Node('z_node1', in_region=r1)
     r1_nodes = list(r1.nodes_sorted)
@@ -98,15 +99,15 @@ def test_nodes_sorted():
     assert r1_nodes[1] == n1
     assert r1_nodes[2] == n2
 
-def test_is_local_node():
-    r1, r2 = _make_regions()
+def test_is_local_node(regions):
+    r1, r2 = regions
     n1 = Node('node1', in_region=r1)
     n2 = Node('node2', in_region=r2)
     assert not n1._is_local_node(n2)
     assert n1._is_local_node(r2)
 
-def test_local_nodes():
-    r1, r2 = _make_regions()
+def test_local_nodes(regions):
+    r1, r2 = regions
     a = Node('a', r1)
     b = Node('b', r1)
     c = Node('c', r1)
@@ -126,8 +127,8 @@ def test_node_dimensions_default():
     assert a.width == 1
     assert a.height == 1
 
-def test_node_dimensions_local():
-    r1, r2 = _make_regions()
+def test_node_dimensions_local(regions):
+    r1, r2 = regions
     a = Node('a', r1)
     b = Node('b', r1)
     c = Node('c', r1)
@@ -140,8 +141,8 @@ def test_node_dimensions_local():
     assert a.height == 1
     assert c.height == 1
 
-def test_node_dimensions_other():
-    r1, r2 = _make_regions()
+def test_node_dimensions_other(regions):
+    r1, r2 = regions
     a = Node('a', r1)
     x = Node('x', r2)
     y = Node('y', r2)
@@ -154,64 +155,14 @@ def test_node_dimensions_other():
     assert a.width == 1
     assert y.width == 1
 
-def test_is_region():
-    r1, _ = _make_regions()
+def test_is_region(regions):
+    r1, _ = regions
     n1 = Node('n1')
     assert r1.is_region
     assert not n1.is_region
 
-def test_is_empty():
-    _, r2 = _make_regions()
+def test_is_empty(regions):
+    _, r2 = regions
     assert r2.is_empty
     n1 = Node('n1', r2)
     assert not r2.is_empty
-
-def test_sources_empty_region():
-    _, r2 = _make_regions()
-    with pytest.raises(AssertionError):
-        r2.sources
-
-def test_sources_pure():
-    _, r2 = _make_regions()
-    a = Node('a', r2)
-    b = Node('b', r2)
-    c = Node('c', r2)
-    d = Node('d', r2)
-    a.add_edge(b)
-    c.add_edge(d)
-    srcs = r2.sources
-    assert len(srcs) == 2
-    assert srcs[0] == a
-
-def test_sources_that_are_sinks():
-    _, r2 = _make_regions()
-    a = Node('a', r2)
-    b = Node('b', r2)
-    srcs = r2.sources
-    assert len(srcs) == 2
-    assert srcs[0] == a
-
-def test_sources_not_pure():
-    _, r2 = _make_regions()
-    a = Node('a', r2)
-    b = Node('b', r2)
-    a.add_edge(b)
-    b.add_edge(a)
-    srcs = r2.sources
-    assert len(srcs) == 1
-    assert srcs[0] == a
-
-def test_sources_max_outward():
-    _, r2 = _make_regions()
-    a = Node('a', r2)
-    b = Node('b', r2)
-    c = Node('c', r2)
-    d = Node('d', r2)
-    a.add_edge(b)
-    a.add_edge(c)
-    b.add_edge(a)
-    d.add_edge(c)
-    c.add_edge(d)
-    srcs = r2.sources
-    assert len(srcs) == 1
-    assert srcs[0] == a
