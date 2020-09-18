@@ -7,9 +7,7 @@ from blockgraph.converter.node import Node, Region
 
 @pytest.fixture
 def region():
-    a = AGraph(name='ag', strict=False, directed=True)
-    r = Region(a)
-    return r
+    return Region('ag')
 
 def test_issue():
     ''' Graph illustrating graphviz bug that

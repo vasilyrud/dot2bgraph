@@ -21,7 +21,6 @@ from blockgraph.converter.node import Node, Region
 from blockgraph.locations import Locations
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
-# RegionToAGraph = NewType('RegionToAGraph', Dict[str, Node])
 
 def _sorted_subgraphs(agraph: AGraph) -> Iterable[AGraph]:
     ''' Normally, graphviz sorts subgraphs by time 
@@ -63,13 +62,13 @@ def _create_regions_nodes(
     '''
     anodes_to_nodes = {} if in_anodes_to_nodes is None else in_anodes_to_nodes
 
-    cur_region = Region(agraph, parent_region)
+    cur_region = Region(agraph.name, parent_region)
 
-    for anode in _direct_nodes(cur_region.agraph, set(anodes_to_nodes.keys())):
+    for anode in _direct_nodes(agraph, set(anodes_to_nodes.keys())):
         node = Node(anode, cur_region)
         anodes_to_nodes[anode] = node
 
-    for sub_agraph in _sorted_subgraphs(cur_region.agraph):
+    for sub_agraph in _sorted_subgraphs(agraph):
         _create_regions_nodes(
             sub_agraph, 
             cur_region, 
@@ -79,12 +78,13 @@ def _create_regions_nodes(
     return cur_region, anodes_to_nodes
 
 def _create_edges(
-    base_region: Region, 
+    base_agraph: AGraph, 
     anodes_to_nodes: ANodeToNode,
 ) -> None:
-    ''' Create all the edges in the agraph.
+    ''' Convert all the edges in the agraph to
+    Nodes' edges.
     '''
-    for asource, adest in base_region.agraph.edges_iter():
+    for asource, adest in base_agraph.edges_iter():
         from_node = anodes_to_nodes[asource]
         to_node   = anodes_to_nodes[adest]
 
@@ -95,7 +95,7 @@ def _agraph2regions(agraph: AGraph) -> Region:
     based on the graph consisting of AGraphs.
     '''
     base_region, anodes_to_nodes = _create_regions_nodes(agraph)
-    _create_edges(base_region, anodes_to_nodes)
+    _create_edges(agraph, anodes_to_nodes)
 
     return base_region
 

@@ -1,19 +1,11 @@
 import pytest
 
-from pygraphviz import AGraph
-
 from blockgraph.converter.node import Node, Region
-
-def _make_agraphs():
-    a1 = AGraph(name='ag', strict=False, directed=True)
-    a2 = a1.add_subgraph(name='subg')
-    return a1, a2
 
 @pytest.fixture
 def regions():
-    a1, a2 = _make_agraphs()
-    r1 = Region(a1)
-    r2 = Region(a2, r1)
+    r1 = Region('ag')
+    r2 = Region('subg', r1)
     return r1, r2
 
 def test_create_node():
@@ -21,9 +13,7 @@ def test_create_node():
     assert n1.name == 'node1'
 
 def test_create_region():
-    a1, _ = _make_agraphs()
-    r1 = Region(a1)
-    assert r1.agraph == a1
+    r1 = Region('ag')
     assert r1.name == 'ag'
     assert len(r1.nodes) == 0
 

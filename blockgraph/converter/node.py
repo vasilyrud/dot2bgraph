@@ -16,8 +16,6 @@ from __future__ import annotations
 from typing import Optional, Iterable, Dict
 import weakref
 
-from pygraphviz import AGraph
-
 class Node:
     def __init__(self, 
         name: str,
@@ -121,12 +119,11 @@ class Node:
 
 class Region(Node):
     def __init__(self,
-        agraph: AGraph,
+        name: str,
         in_region: Optional[Region] = None,
         *args, **kwargs
     ):
-        self.agraph = agraph
-        super().__init__(agraph.get_name(), in_region)
+        super().__init__(name, in_region)
         self.is_region = True
         self.nodes_map: Dict[str, Node] = {}
 
