@@ -66,34 +66,57 @@ class Node:
         return False if self.in_region is None else (node in self.in_region.nodes)
 
     def _local_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
-        return [n for n in nodes if self._is_local_node(n)]
+        for n in nodes:
+            if self._is_local_node(n):
+                yield n
 
     def _other_nodes(self, nodes: Iterable[Node]) -> Iterable[Node]:
-        return [n for n in nodes if not self._is_local_node(n)]
+        for n in nodes:
+            if not self._is_local_node(n):
+                yield n
+
+    def _nodes_to_map(self, nodes: Iterable[Node]) -> Dict[str, Node]:
+        return {n.name : n for n in nodes}
 
     @property
     def local_next(self) -> Iterable[Node]:
-        return self._local_nodes(self.next)
+        yield from self._local_nodes(self.next)
 
     @property
     def local_prev(self) -> Iterable[Node]:
-        return self._local_nodes(self.prev)
+        yield from self._local_nodes(self.prev)
 
     @property
     def other_next(self) -> Iterable[Node]:
-        return self._other_nodes(self.next)
+        yield from self._other_nodes(self.next)
 
     @property
     def other_prev(self) -> Iterable[Node]:
-        return self._other_nodes(self.prev)
+        yield from self._other_nodes(self.prev)
+
+    @property
+    def local_next_map(self) -> Dict[str, Node]:
+        return self._nodes_to_map(self.local_next)
+
+    @property
+    def local_prev_map(self) -> Dict[str, Node]:
+        return self._nodes_to_map(self.local_prev)
+
+    @property
+    def other_next_map(self) -> Dict[str, Node]:
+        return self._nodes_to_map(self.other_next)
+
+    @property
+    def other_prev_map(self) -> Dict[str, Node]:
+        return self._nodes_to_map(self.other_prev)
 
     @property
     def width(self) -> int:
-        return max(1, len(self.local_prev), len(self.local_next))
+        return max(1, len(list(self.local_prev)), len(list(self.local_next)))
 
     @property
     def height(self) -> int:
-        return max(1, len(self.other_prev), len(self.other_next))
+        return max(1, len(list(self.other_prev)), len(list(self.other_next)))
 
     def _node_names(self, nodes: Iterable[Node]) -> str:
         ''' Only return a string of the anode names

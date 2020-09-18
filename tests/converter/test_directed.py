@@ -2,7 +2,11 @@ import pytest
 
 from pygraphviz import AGraph
 
-from blockgraph.converter.directed import _sorted_subgraphs, _direct_nodes, _agraph2regions, _create_regions_nodes, _sources
+from blockgraph.converter.directed import (
+    _sorted_subgraphs, _direct_nodes, 
+    _create_regions_nodes, _agraph2regions, 
+    _sources
+)
 from blockgraph.converter.node import Node, Region
 
 @pytest.fixture
@@ -72,7 +76,7 @@ def test_direct_nodes():
     assert len(direct_nodes) == 1
     assert 'c' in direct_nodes
 
-def test_create_regions_nodes_child():
+def test_agraph2regions_child():
     dot = '''
     digraph X {
         x;
@@ -87,7 +91,7 @@ def test_create_regions_nodes_child():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region, _ = _create_regions_nodes(agraph)
+    base_region = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 2
@@ -101,7 +105,7 @@ def test_create_regions_nodes_child():
     assert len(nodes_B) == 1
     assert 'b' in nodes_B
 
-def test_create_regions_nodes_sibling():
+def test_agraph2regions_sibling():
     dot = '''
     digraph X {
         x;
@@ -116,21 +120,25 @@ def test_create_regions_nodes_sibling():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region, _ = _create_regions_nodes(agraph)
+    base_region = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 3
     assert 'x' in base_nodes and 'cluster_A' in base_nodes and 'cluster_B' in base_nodes
+    assert 'a' in base_nodes['x'].other_next_map
 
     nodes_A = base_nodes['cluster_A'].nodes_map
     assert len(nodes_A) == 1
     assert 'a' in nodes_A
+    assert 'x' in nodes_A['a'].other_prev_map
+    assert 'b' in nodes_A['a'].other_next_map
 
     nodes_B = base_nodes['cluster_B'].nodes_map
     assert len(nodes_B) == 1
     assert 'b' in nodes_B
+    assert 'a' in nodes_B['b'].other_prev_map
 
-def test_create_regions_nodes_child_2():
+def test_agraph2regions_child_2():
     dot = '''
     digraph X {
         subgraph cluster_A {
@@ -144,7 +152,7 @@ def test_create_regions_nodes_child_2():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region, _ = _create_regions_nodes(agraph)
+    base_region = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 1
@@ -153,12 +161,20 @@ def test_create_regions_nodes_child_2():
     nodes_A = base_nodes['cluster_A'].nodes_map
     assert len(nodes_A) == 3
     assert 'k' in nodes_A and 'l' in nodes_A and 'cluster_B' in nodes_A
+    assert 'l' in nodes_A['k'].local_next_map
+    assert 'k' in nodes_A['l'].local_prev_map
+    assert 'e' in nodes_A['k'].other_next_map
+    assert 'f' in nodes_A['l'].other_prev_map
 
     nodes_B = nodes_A['cluster_B'].nodes_map
     assert len(nodes_B) == 2
     assert 'e' in nodes_B and 'f' in nodes_B
+    assert 'f' in nodes_B['e'].local_next_map
+    assert 'e' in nodes_B['f'].local_prev_map
+    assert 'k' in nodes_B['e'].other_prev_map
+    assert 'l' in nodes_B['f'].other_next_map
 
-def test_create_regions_nodes_sibling_2():
+def test_agraph2regions_sibling_2():
     dot = '''
     digraph X {
         subgraph cluster_A {
@@ -172,7 +188,7 @@ def test_create_regions_nodes_sibling_2():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region, _ = _create_regions_nodes(agraph)
+    base_region = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 2
@@ -187,7 +203,7 @@ def test_create_regions_nodes_sibling_2():
     assert 'e' in nodes_B and 'f' in nodes_B
 
 
-def test_create_regions_nodes_reverse_sibling():
+def test_agraph2regions_reverse_sibling():
     ''' Due to alphabetical order, the 2 clusters
     are in reverse order. Once time of creation bug
     is fixed, this behavior will change.
@@ -206,7 +222,7 @@ def test_create_regions_nodes_reverse_sibling():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region, _ = _create_regions_nodes(agraph)
+    base_region = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 3
@@ -223,7 +239,7 @@ def test_create_regions_nodes_reverse_sibling():
     # assert 'b' in nodes_B
     assert len(nodes_B) == 0
 
-def test_create_regions_nodes_sibling_child():
+def test_agraph2regions_sibling_child():
     dot = '''
     digraph X {
         subgraph cluster_A {
@@ -238,7 +254,7 @@ def test_create_regions_nodes_sibling_child():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region, _ = _create_regions_nodes(agraph)
+    base_region = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     nodes_A = base_nodes['cluster_A'].nodes_map
@@ -254,7 +270,7 @@ def test_create_regions_nodes_sibling_child():
     assert 'e' in nodes_B
     assert 'l' in nodes_C
 
-def test_create_regions_nodes_both_sibling_children():
+def test_agraph2regions_both_sibling_children():
     dot = '''
     digraph X {
         subgraph cluster_A {
@@ -274,7 +290,7 @@ def test_create_regions_nodes_both_sibling_children():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region, _ = _create_regions_nodes(agraph)
+    base_region = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     nodes_A = base_nodes['cluster_A'].nodes_map
