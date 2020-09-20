@@ -5,7 +5,7 @@ from pygraphviz import AGraph
 from blockgraph.converter.directed import (
     _sorted_subgraphs, _direct_nodes, 
     _create_regions_nodes, _agraph2regions, 
-    _sources
+    _sources, _sinks
 )
 from blockgraph.converter.node import Node, Region
 
@@ -309,38 +309,55 @@ def test_agraph2regions_both_sibling_children():
     assert 'c' in nodes_C
     assert 'd' in nodes_D
 
-def test_sources_empty_region(region):
+def test_sources_sinks_empty_region(region):
     with pytest.raises(AssertionError):
         _sources(region)
+    with pytest.raises(AssertionError):
+        _sinks(region)
 
-def test_sources_pure(region):
+def test_sources_sinks_pure(region):
     a = Node('a', region)
     b = Node('b', region)
     c = Node('c', region)
     d = Node('d', region)
     a.add_edge(b)
     c.add_edge(d)
+
     srcs = _sources(region)
     assert len(srcs) == 2
     assert srcs[0] == a
 
-def test_sources_that_are_sinks(region):
+    snks = _sinks(region)
+    assert len(snks) == 2
+    assert snks[0] == b
+
+def test_sources_sinks_that_are_both(region):
     a = Node('a', region)
     b = Node('b', region)
+
     srcs = _sources(region)
     assert len(srcs) == 2
     assert srcs[0] == a
 
-def test_sources_not_pure(region):
+    snks = _sinks(region)
+    assert len(snks) == 2
+    assert snks[0] == a
+
+def test_sources_sinks_not_pure(region):
     a = Node('a', region)
     b = Node('b', region)
     a.add_edge(b)
     b.add_edge(a)
+
     srcs = _sources(region)
     assert len(srcs) == 1
     assert srcs[0] == a
 
-def test_sources_max_outward(region):
+    snks = _sinks(region)
+    assert len(snks) == 1
+    assert snks[0] == b
+
+def test_sources_sinks_max_out_in(region):
     a = Node('a', region)
     b = Node('b', region)
     c = Node('c', region)
@@ -350,6 +367,11 @@ def test_sources_max_outward(region):
     b.add_edge(a)
     d.add_edge(c)
     c.add_edge(d)
+
     srcs = _sources(region)
     assert len(srcs) == 1
     assert srcs[0] == a
+
+    snks = _sinks(region)
+    assert len(snks) == 1
+    assert snks[0] == c
