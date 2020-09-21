@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Set, Optional
 
 from colour import Color
 
@@ -29,7 +29,7 @@ class Locations:
         self._blocks_id_counter = 0
         self._blocks = {} # Use dict as Blocks can be deleted
         self._edge_ends_id_counter = 0
-        self._edge_ends = {}
+        self._edge_ends: Dict[int, _EdgeEnd] = {}
 
     def add_block(self, *args, **kwargs):
         new_block_id = self._blocks_id_counter
@@ -122,7 +122,7 @@ class _Block:
         self.color = Color(kwargs.get('color', '#cccccc'))
         self.shape = kwargs.get('shape', 'box')
 
-        self._edge_ends = set()
+        self._edge_ends: Set[_EdgeEnd] = set()
 
     @property
     def coords(self):

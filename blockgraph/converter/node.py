@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Optional, Iterable, Dict
+from typing import Optional, Iterable, Sequence, Dict, List
 import weakref
 
 class Node:
@@ -27,8 +27,8 @@ class Node:
 
         self.is_region = False
 
-        self.prev = []
-        self.next = []
+        self.prev: List[Node] = []
+        self.next: List[Node] = []
 
     def _print_node(self, depth):
         print('{}{}'.format(depth*'  ', self))
@@ -178,7 +178,7 @@ class Region(Node):
             yield node
 
     @property
-    def nodes_sorted(self) -> Iterable[Node]:
+    def nodes_sorted(self) -> Sequence[Node]:
         ''' Return sorted nodes irregardless of whether they
         are Nodes or Regions.
         '''

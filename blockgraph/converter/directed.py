@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Dict, NewType
+from typing import cast, Dict, Set, Tuple, Optional, Iterable, NewType
 
 from pygraphviz import AGraph
 
@@ -56,11 +56,11 @@ def _create_regions_nodes(
     agraph: AGraph,
     parent_region: Optional[Region] = None,
     in_anodes_to_nodes: Optional[ANodeToNode] = None,
-) -> None:
+) -> Tuple[Region, ANodeToNode]:
     ''' Create nodes in the cur_region and 
     its sub-regions.
     '''
-    anodes_to_nodes = {} if in_anodes_to_nodes is None else in_anodes_to_nodes
+    anodes_to_nodes: ANodeToNode = cast(ANodeToNode, {}) if in_anodes_to_nodes is None else in_anodes_to_nodes
 
     cur_region = Region(agraph.name, parent_region)
 
