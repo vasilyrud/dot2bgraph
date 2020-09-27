@@ -18,6 +18,7 @@ from typing import cast, Dict, Set, Tuple, Optional, Iterable, NewType
 from pygraphviz import AGraph
 
 from blockgraph.converter.node import Node, Region
+from blockgraph.converter.grid import Grid, place_on_grid
 from blockgraph.locations import Locations
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
@@ -99,68 +100,13 @@ def _agraph2regions(agraph: AGraph) -> Region:
 
     return base_region
 
-def _sources(region: Region) -> Iterable[Node]:
-    assert not region.is_empty, 'Cannot get sources of a {} with no nodes'.format(type(region).__name__)
-    sources = []
-
-    # Get all nodes that don't have inward connections.
-    for node in region.nodes_sorted:
-        if node.prev: continue
-        sources.append(node)
-
-    if sources: return sources
-
-    # Pick a node out of nodes with fewest inward connections 
-    # that also has the most outward connections.
-    min_inward  = min(len(node.prev) for node in region.nodes)
-    max_outward = max(len(node.next) for node in region.nodes)
-
-    for node in region.nodes_sorted:
-        if len(node.prev) != min_inward:  continue
-        if len(node.next) != max_outward: continue
-        sources.append(node)
-        break
-
-    assert sources, 'Somehow didn\'t find any source nodes.'
-    return sources
-
-def _sinks(region: Region) -> Iterable[Node]:
-    assert not region.is_empty, 'Cannot get sinks of a {} with no nodes'.format(type(region).__name__)
-    sinks = []
-
-    # Get all nodes that don't have outward connections.
-    for node in region.nodes_sorted:
-        if node.next: continue
-        sinks.append(node)
-
-    if sinks: return sinks
-
-    # Pick a node out of nodes with fewest outward connections 
-    # that also has the most inward connections.
-    min_outward = min(len(node.next) for node in region.nodes)
-    max_inward  = max(len(node.prev) for node in region.nodes)
-
-    for node in reversed(region.nodes_sorted):
-        if len(node.next) != min_outward: continue
-        if len(node.prev) != max_inward:  continue
-        sinks.append(node)
-        break
-
-    assert sinks, 'Somehow didn\'t find any sink nodes.'
-    return sinks
-
 def _regions2locations(base_region: Region) -> Locations:
     locations = Locations()
 
-    # Determine sources and sinks
-    sources = _sources(base_region)
-    sinks = _sinks(base_region)
-    print(sources)
-    print(sinks)
+    grid, edge_types = place_on_grid(base_region)
 
     # Determine cur_region depth
     # Determine cur_region width
-    # Place nodes in the region
     # Center nodes
 
     return locations
@@ -168,13 +114,6 @@ def _regions2locations(base_region: Region) -> Locations:
 def dot2locations(dot: str) -> Locations:
 
     agraph = AGraph(string=dot)
-
-    # print('VAS nodes')
-    # print(agraph.nodes())
-
-    # print('VAS subg')
-    # print(agraph.subgraphs()[0])
-    # print(agraph.subgraphs()[0].subgraphs()[0])
 
     base_region = _agraph2regions(agraph)
     base_region.print_nodes()
