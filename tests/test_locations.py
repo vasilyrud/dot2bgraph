@@ -1,6 +1,6 @@
 import pytest
 
-from blockgraph.locations import Locations, _Block, _EdgeEnd, _Direction
+from blockgraph.locations import Locations, _Block, _EdgeEnd, Direction
 
 def _make_blocks(locs: Locations):
     b0 = locs.add_block()
@@ -9,14 +9,14 @@ def _make_blocks(locs: Locations):
     return b0, b1, b2
 
 def _make_edge_ends(locs: Locations):
-    e0 = locs.add_edge_end(x=5, y=1, direction='down')
-    e1 = locs.add_edge_end(x=1, y=8, direction='right')
+    e0 = locs.add_edge_end(x=5, y=1, direction=Direction.DOWN)
+    e1 = locs.add_edge_end(x=1, y=8, direction=Direction.RIGHT)
     return e0, e1
 
 def _make_directions():
-    dir1 = _Direction('down')
-    dir2 = _Direction('down')
-    dir3 = _Direction('up')
+    dir1 = Direction.DOWN
+    dir2 = Direction.DOWN
+    dir3 = Direction.UP
     return dir1, dir2, dir3
 
 def test_locations_init():
@@ -66,7 +66,7 @@ def test_add_edge_end():
     e0, _ = _make_edge_ends(locs)
     locs.assign_edge_to_block(e0, b1)
     assert locs.edge_end(e0).coords == (5,1)
-    assert locs.edge_end(e0).direction == 'down'
+    assert locs.edge_end(e0).direction == Direction.DOWN
     assert e0 in locs.block(b1).edge_ends
 
 def test_edge_end_ids():
@@ -137,10 +137,10 @@ def test_direction_eq():
     dir1, dir2, dir3 = _make_directions()
     assert dir1 == dir2
     assert dir1 != dir3
-    assert dir1 == 'down'
-    assert 'down' == dir1
-    assert dir1 != 'up'
-    assert 'up' != dir1
+    assert dir1 == Direction.DOWN
+    assert Direction.DOWN == dir1
+    assert dir1 != Direction.UP
+    assert Direction.UP != dir1
 
 def test_direction_hash():
     dir1, dir2, dir3 = _make_directions()

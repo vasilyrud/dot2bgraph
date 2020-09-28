@@ -14,11 +14,12 @@
 
 from __future__ import annotations
 from typing import Dict, Set, Optional
+from enum import Enum, auto
 
 from colour import Color
 
 class Locations:
-    ''' Object for all locations of blocks and edges
+    ''' Class for all locations of blocks and edges
     in the graph.
 
     Define dedicated adder functions rather than simply 
@@ -111,6 +112,11 @@ class Locations:
         )
 
 class _Block:
+    ''' A simple block in the graph.
+
+    The block contains edge ends, which are responsible
+    for encoding information about edges they participate in.
+    '''
     def __init__(self, block_id: int, *args, **kwargs):
         self.block_id = block_id
 
@@ -175,42 +181,28 @@ class _Block:
             self.block_id,
         )
 
-class _Direction:
-    VALID_DIRECTIONS = [
-        'up',
-        'down',
-        'left',
-        'right',
-    ]
-
-    def __init__(self, direction: str):
-        if direction not in self.VALID_DIRECTIONS:
-            raise ValueError('{} is not a recognized direction.'.format(direction))
-        self._direction = direction
-
-    def __eq__(self, other):
-        if isinstance(other, _Direction):
-            return self._direction == other._direction
-        elif isinstance(other, str):
-            return self._direction == other
-        return NotImplemented
-
-    def __hash__(self):
-        return hash(self._direction)
+class Direction(Enum):
+    UP = auto()
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
 
     def __str__(self):
-        return self._direction
-
-    def __repr__(self):
-        return self._direction
+        return self.name.lower()
 
 class _EdgeEnd:
+    ''' An edge end is the representation of one end of an
+    edge in the graph.
+
+    It is bi-directional, but the "direction" property may
+    be used to help visually show directionality.
+    '''
     def __init__(self, edge_end_id: int, *args, **kwargs):
         self.edge_end_id = edge_end_id
 
-        self.x = kwargs.get('x', 0)
-        self.y = kwargs.get('y', 0)
-        self.direction = _Direction(kwargs.get('direction', 'up'))
+        self.x: int = kwargs.get('x', 0)
+        self.y: int = kwargs.get('y', 0)
+        self.direction: Direction = Direction(kwargs.get('direction', Direction.UP))
 
         self._edge_ends: Dict[_EdgeEnd,int] = {}
 
@@ -221,7 +213,7 @@ class _EdgeEnd:
     @property
     def edge_ends_iter(self):
         for edge_end, count in self._edge_ends.items():
-            for i in range(count):
+            for _ in range(count):
                 yield edge_end.edge_end_id
 
     @property

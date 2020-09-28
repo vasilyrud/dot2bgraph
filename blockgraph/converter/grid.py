@@ -144,8 +144,7 @@ def _classify_edge(
     edge_types,
     seen,
 ):
-    cur_node  = edge[0]
-    next_node = edge[1]
+    cur_node, next_node = edge
 
     if next_node not in seen.nodes:
         edge_type = _EdgeType.NORMAL
@@ -165,10 +164,10 @@ def _classify_edge(
 def _update_depth(
     edge,
     edge_types,
-    depth,
     node_depths,
+    depth,
 ):
-    next_node = edge[1]
+    _, next_node = edge
 
     if edge in edge_types and edge_types[edge] == _EdgeType.BACK:
         return
@@ -177,8 +176,8 @@ def _update_depth(
 
     node_depths[next_node] = depth
 
-def _get_edge_info_dfs(
-    cur_node,
+def _get_edge_info_dfs_recurse(
+    prev_edge,
     edge_types,
     node_depths,
     seen,
@@ -188,20 +187,21 @@ def _get_edge_info_dfs(
     graph by traversing in DFS order.
     Assumes caller iterates over source nodes.
     '''
+    _, cur_node = prev_edge
 
     seen.time += 1
     seen.start[cur_node] = seen.time
     seen.nodes.add(cur_node)
 
     for next_node in cur_node.local_next:
-        edge = (cur_node,next_node)
+        next_edge = (cur_node,next_node)
 
-        _classify_edge(edge, edge_types, seen)
-        _update_depth(edge, edge_types, depth, node_depths)
+        _classify_edge(next_edge, edge_types, seen)
+        _update_depth(next_edge, edge_types, node_depths, depth)
 
-        if edge_types[edge] == _EdgeType.NORMAL:
-            _get_edge_info_dfs(
-                next_node,
+        if edge_types[next_edge] == _EdgeType.NORMAL:
+            _get_edge_info_dfs_recurse(
+                next_edge,
                 edge_types,
                 node_depths,
                 seen,
@@ -211,23 +211,42 @@ def _get_edge_info_dfs(
     seen.time += 1
     seen.finish[cur_node] = seen.time
 
-def _get_edge_info(
+def _get_edge_info_dfs(
     region: Region,
-) -> Tuple[EdgeTypes,NodeDepths]:
-    ''' Clasify edges in the graph based
-    on their _EdgeType and nodes based on
-    their depth from the source nodes.
+    edge_types: EdgeTypes,
+    node_depths: NodeDepths,
+):
+    ''' Call DFS to edge classification starting only
+    at the source nodes.
+    Assumes that source nodes will never be traversed
+    to before they are used as sources.
     '''
-    edge_types: EdgeTypes = {}
-    node_depths: NodeDepths = {}
     seen = _SeenNodes()
 
     for source in _sources(region):
         assert source not in seen.nodes, 'Source node was used that does not allow source-driven DFS edge classification.'
         next_edge = (None, source)
 
-        _update_depth(next_edge, edge_types, Grid.MIN_INDEX, node_depths)
-        _get_edge_info_dfs(source, edge_types, node_depths, seen, Grid.MIN_INDEX+1)
+        _update_depth(next_edge, edge_types, node_depths, Grid.MIN_INDEX)
+        _get_edge_info_dfs_recurse(
+            next_edge, 
+            edge_types, 
+            node_depths, 
+            seen,
+            Grid.MIN_INDEX+1,
+        )
+
+def _get_edge_info(
+    region: Region,
+) -> Tuple[EdgeTypes,NodeDepths]:
+    ''' Clasify edges in the graph based
+    on their _EdgeType and nodes based on
+    their depth in the graph.
+    '''
+    edge_types: EdgeTypes = {}
+    node_depths: NodeDepths = {}
+
+    _get_edge_info_dfs(region, edge_types, node_depths)
 
     return edge_types, node_depths
 
@@ -237,7 +256,7 @@ def _place_nodes(grid, node_depths):
 
 def place_on_grid(
     region: Region,
-):
+) -> Tuple[Grid,EdgeTypes]:
     grid = Grid(region)
 
     edge_types, node_depths = _get_edge_info(region)
