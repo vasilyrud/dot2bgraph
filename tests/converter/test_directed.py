@@ -71,6 +71,17 @@ def test_direct_nodes():
     assert len(direct_nodes) == 1
     assert 'c' in direct_nodes
 
+def test_agraph2regions_empty():
+    dot = '''
+    digraph X {
+    }
+    '''
+    agraph = AGraph(string=dot)
+    base_region = _agraph2regions(agraph)
+
+    base_nodes = base_region.nodes_map
+    assert len(base_nodes) == 0
+
 def test_agraph2regions_child():
     dot = '''
     digraph X {

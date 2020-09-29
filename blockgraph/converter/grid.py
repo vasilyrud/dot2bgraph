@@ -25,7 +25,6 @@ class _EdgeType(Enum):
     CROSS = auto()
     BACK = auto()
 
-Coord = NewType('Coord', Tuple[int, int])
 EdgeTypes = NewType('EdgeTypes', Dict[Tuple[Node,Node],_EdgeType])
 NodeDepths = NewType('NodeDepths', Dict[Node, int])
 
@@ -49,10 +48,14 @@ class Grid:
 
     MIN_INDEX=0
 
-    def __init__(self, region: Region):
-        self.region: Region = region
+    def __init__(self, node: Node):
+        ''' In a hierarchy of grids, only the top-level Grid
+        has to be explicitly created.
+        '''
+        self.node = node
 
-        self._node2coord: Dict[Node, Coord] = {}
+        self._node2coord: Dict[Node,Tuple[int,int]] = {}
+        self._node2grid:  Dict[Node,Grid] = {}
         self._coord2node: Dict[int,Dict[int,Node]] = {}
 
     def has_node(self, node: Node) -> bool:
@@ -68,10 +71,11 @@ class Grid:
         node: Node, 
         x: Optional[int] = None, 
         y: Optional[int] = None,
-    ):
+    ) -> Grid:
         ''' Add node to the given x,y location.
         If y is not specified, use the last available row.
         If x is not specified, add to the end of the row.
+        Generate a sub-grid for the newly added node.
         '''
         use_y = y if y is not None else max(
             self._coord2node.keys(), 
@@ -87,6 +91,7 @@ class Grid:
 
         assert node not in self._node2coord, 'Node {} already placed.'.format(node)
         self._node2coord[node] = (use_x,use_y)
+        self._node2grid[node]  = Grid(node)
 
         assert use_x not in self._coord2node[use_y], 'Location ({},{}) already occupied.'.format(use_x, use_y)
         self._coord2node[use_y][use_x] = node
@@ -99,13 +104,19 @@ class Grid:
         y = coord[1]
 
         del self._node2coord[node]
+        del self._node2grid[node]
         del self._coord2node[y][x]
         if len(self._coord2node[y]) == 0:
             del self._coord2node[y]
 
 def _sources(region: Region) -> Iterable[Node]:
-    assert not region.is_empty, 'Cannot get sources of a {} with no nodes'.format(type(region).__name__)
+    ''' Find either all the sources that are naturally
+    sources or pick one source that is the least connected
+    inwards.
+    '''
     sources = []
+
+    if not region.nodes_sorted: return sources
 
     # Get all nodes that don't have inward connections.
     for node in region.nodes_sorted:
@@ -250,16 +261,16 @@ def _get_edge_info(
 
     return edge_types, node_depths
 
-def _place_nodes(grid, node_depths):
-    for node, depth in node_depths.items():
-        grid.add_node(node, y=depth)
-
 def place_on_grid(
-    region: Region,
-) -> Tuple[Grid,EdgeTypes]:
-    grid = Grid(region)
+    node: Node,
+    in_grid: Optional[Grid] = None,
+) -> Grid:
+    grid = in_grid if in_grid is not None else Grid(node)
 
-    edge_types, node_depths = _get_edge_info(region)
-    _place_nodes(grid, node_depths)
+    if not node.is_region: return
 
-    return grid, edge_types
+    _, node_depths = _get_edge_info(node)
+
+    for sub_node, depth in node_depths.items():
+        sub_grid = grid.add_node(sub_node, y=depth)
+        place_on_grid(sub_node, sub_grid)

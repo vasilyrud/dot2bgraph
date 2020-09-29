@@ -103,7 +103,7 @@ def _agraph2regions(agraph: AGraph) -> Region:
 def _regions2locations(base_region: Region) -> Locations:
     locations = Locations()
 
-    grid, edge_types = place_on_grid(base_region)
+    grid = place_on_grid(base_region)
 
     # Determine cur_region depth
     # Determine cur_region width

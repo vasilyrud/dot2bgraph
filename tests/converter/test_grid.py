@@ -73,11 +73,11 @@ def test_grid_del_node(loose_nodes):
     grid.add_node(n2, x=10, y=10)
     grid.add_node(n1)
 
-def test_sources_sinks_empty_region(region):
-    with pytest.raises(AssertionError):
-        _sources(region)
+def test_sources_empty_region(region):
+    srcs = _sources(region)
+    assert len(srcs) == 0
 
-def test_sources_sinks_pure(region):
+def test_sources_pure(region):
     a = Node('a', region)
     b = Node('b', region)
     c = Node('c', region)
@@ -89,7 +89,7 @@ def test_sources_sinks_pure(region):
     assert len(srcs) == 2
     assert srcs[0] == a
 
-def test_sources_sinks_that_are_both(region):
+def test_sources_that_are_both(region):
     a = Node('a', region)
     b = Node('b', region)
 
@@ -97,7 +97,7 @@ def test_sources_sinks_that_are_both(region):
     assert len(srcs) == 2
     assert srcs[0] == a
 
-def test_sources_sinks_not_pure(region):
+def test_sources_not_pure(region):
     a = Node('a', region)
     b = Node('b', region)
     a.add_edge(b)
@@ -107,7 +107,7 @@ def test_sources_sinks_not_pure(region):
     assert len(srcs) == 1
     assert srcs[0] == a
 
-def test_sources_sinks_max_out_in(region):
+def test_sources_max_out_in(region):
     a = Node('a', region)
     b = Node('b', region)
     c = Node('c', region)
