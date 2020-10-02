@@ -16,16 +16,17 @@ from __future__ import annotations
 from typing import Dict, Tuple, List, Set, NewType
 from collections import deque
 from enum import Enum, auto
+from itertools import chain
 
 from blockgraph.converter.node import Node, Region
 
-class _EdgeType(Enum):
+class EdgeType(Enum):
     NORMAL = auto()
     FWD = auto()
     CROSS = auto()
     BACK = auto()
 
-EdgeTypes = NewType('EdgeTypes', Dict[Tuple[Node,Node],_EdgeType])
+EdgeTypes = NewType('EdgeTypes', Dict[Tuple[Node,Node],EdgeType])
 NodeDepths = NewType('NodeDepths', Dict[Node, int])
 
 class Grid:
@@ -56,7 +57,40 @@ class Grid:
 
         self._node2coord: Dict[Node,Tuple[int,int]] = {}
         self._node2grid:  Dict[Node,Grid] = {}
-        self._coord2node: Dict[int,Dict[int,Node]] = {}
+        self._coord2node: Dict[int,Dict[int,Node]] = {} # dict[y][x]
+
+    def _nodes_iter_y(self) -> Iterable[int]:
+        return sorted(self._coord2node)
+
+    def _nodes_iter_x(self, y) -> Iterable[int]:
+        return sorted(self._coord2node[y])
+
+    def _nodes_iter(self) -> Iterable[Node]:
+        ''' Iterate through sub-nodes by their
+        y and then by their x coordinates.
+        '''
+        for y in self._nodes_iter_y():
+            for x in self._nodes_iter_x(y):
+                yield self._coord2node[y][x]
+
+    @property
+    def sub_grids(self) -> Iterable[Grid]:
+        return list(self._node2grid[node] for node in self._nodes_iter())
+
+    @property
+    def sub_nodes(self) -> Iterable[Node]:
+        return list(self._nodes_iter())
+
+    @property
+    def is_empty(self) -> bool:
+        if len(self._node2grid) == 0:
+            assert len(self._node2coord) == 0
+            assert len(self._coord2node) == 0
+            return True
+        return False
+
+    def get_sub_grid(self, node: Node) -> Grid:
+        return self._node2grid[node]
 
     def has_node(self, node: Node) -> bool:
         return node in self._node2coord
@@ -67,7 +101,7 @@ class Grid:
     def get_y(self, node: Node) -> int:
         return self._node2coord[node][1]
 
-    def add_node(self, 
+    def add_sub_grid(self, 
         node: Node, 
         x: Optional[int] = None, 
         y: Optional[int] = None,
@@ -91,13 +125,17 @@ class Grid:
 
         assert node not in self._node2coord, 'Node {} already placed.'.format(node)
         self._node2coord[node] = (use_x,use_y)
-        self._node2grid[node]  = Grid(node)
+        new_grid = Grid(node)
+        self._node2grid[node] = new_grid
 
         assert use_x not in self._coord2node[use_y], 'Location ({},{}) already occupied.'.format(use_x, use_y)
         self._coord2node[use_y][use_x] = node
 
-    def del_node(self, node: Node):
+        return new_grid
+
+    def del_sub_grid(self, node: Node):
         ''' Remove node from all of grid's data structures.
+        This means removing the sub-grid as well.
         '''
         coord = self._node2coord[node]
         x = coord[0]
@@ -109,35 +147,23 @@ class Grid:
         if len(self._coord2node[y]) == 0:
             del self._coord2node[y]
 
-def _sources(region: Region) -> Iterable[Node]:
-    ''' Find either all the sources that are naturally
-    sources or pick one source that is the least connected
-    inwards.
-    '''
-    sources = []
+    def __str__(self):
+        string = ''
 
-    if not region.nodes_sorted: return sources
+        string += '['
+        for i, y in enumerate(self._nodes_iter_y()):
+            if i != 0: string += ','
+            string += '['
+            for j, x in enumerate(self._nodes_iter_x(y)):
+                if j != 0: string += ','
+                string += repr(self._coord2node[y][x])
+            string += ']'
+        string += ']'
 
-    # Get all nodes that don't have inward connections.
-    for node in region.nodes_sorted:
-        if node.prev: continue
-        sources.append(node)
+        return string
 
-    if sources: return sources
-
-    # Pick a node out of nodes with fewest inward connections 
-    # that also has the most outward connections.
-    min_inward  = min(len(node.prev) for node in region.nodes)
-    max_outward = max(len(node.next) for node in region.nodes)
-
-    for node in region.nodes_sorted:
-        if len(node.prev) != min_inward:  continue
-        if len(node.next) != max_outward: continue
-        sources.append(node)
-        break
-
-    assert sources, 'Somehow didn\'t find any source nodes.'
-    return sources
+    def __repr__(self):
+        return 'grid<{}>'.format(self.node.name)
 
 class _SeenNodes:
     ''' Helper class to store info about nodes
@@ -150,6 +176,59 @@ class _SeenNodes:
         self.start:  Dict[Node,int] = {}
         self.finish: Dict[Node,int] = {}
 
+def _sources_per_conn_comp(conn_comp: Iterable[Node]) -> Set[Node]:
+    ''' Find either the sources that are naturally
+    sources or pick one source that is the least 
+    connected inwards.
+    Assume we are given a connected component.
+    '''
+    assert conn_comp, 'Got empty set of connected components to get sources from.'
+
+    # Get node that doesn't have inward connections.
+    sources = {node for node in conn_comp if not node.prev}
+    if sources: return sources
+
+    # Otherwise, pick a node out of nodes with fewest inward connections 
+    # that also has the most outward connections.
+    min_inward  = min(len(node.prev) for node in conn_comp)
+    max_outward = max(len(node.next) for node in conn_comp)
+
+    for node in sorted(conn_comp, key=lambda n: n.name):
+        if (
+            len(node.prev) == min_inward and
+            len(node.next) == max_outward
+        ):
+            return {node}
+
+    assert False, 'Somehow didn\'t find any source node.'
+
+def _get_conn_comp_dfs_recurse(node, seen, conn_comp):
+    seen.nodes.add(node)
+    conn_comp.add(node)
+
+    # Iterate over edges while ignoring directedness
+    for next_node in chain(node.local_next, node.local_prev):
+        if next_node in seen.nodes: continue
+
+        _get_conn_comp_dfs_recurse(next_node, seen, conn_comp)
+
+def _sources(region: Region) -> Iterable[Node]:
+    ''' Get sources, one per connected component.
+    Return in alphabetical order.
+    '''
+    seen = _SeenNodes()
+    sources = set()
+
+    for node in region.nodes_sorted:
+        if node in seen.nodes: continue
+
+        conn_comp = set()
+        _get_conn_comp_dfs_recurse(node, seen, conn_comp)
+
+        sources |= _sources_per_conn_comp(conn_comp)
+
+    return list(sorted(sources, key=lambda s: s.name))
+
 def _classify_edge(
     edge,
     edge_types,
@@ -158,16 +237,16 @@ def _classify_edge(
     cur_node, next_node = edge
 
     if next_node not in seen.nodes:
-        edge_type = _EdgeType.NORMAL
+        edge_type = EdgeType.NORMAL
 
     elif next_node not in seen.finish:
-        edge_type = _EdgeType.BACK
+        edge_type = EdgeType.BACK
 
     elif seen.start[cur_node] < seen.start[next_node]:
-        edge_type = _EdgeType.FWD
+        edge_type = EdgeType.FWD
 
     else:
-        edge_type = _EdgeType.CROSS
+        edge_type = EdgeType.CROSS
 
     edge_types[edge] = edge_type
     return edge_type
@@ -180,7 +259,7 @@ def _update_depth(
 ):
     _, next_node = edge
 
-    if edge in edge_types and edge_types[edge] == _EdgeType.BACK:
+    if edge in edge_types and edge_types[edge] == EdgeType.BACK:
         return
     if next_node in node_depths and node_depths[next_node] > depth:
         return
@@ -210,7 +289,7 @@ def _get_edge_info_dfs_recurse(
         _classify_edge(next_edge, edge_types, seen)
         _update_depth(next_edge, edge_types, node_depths, depth)
 
-        if edge_types[next_edge] == _EdgeType.NORMAL:
+        if edge_types[next_edge] == EdgeType.NORMAL:
             _get_edge_info_dfs_recurse(
                 next_edge,
                 edge_types,
@@ -251,7 +330,7 @@ def _get_edge_info(
     region: Region,
 ) -> Tuple[EdgeTypes,NodeDepths]:
     ''' Clasify edges in the graph based
-    on their _EdgeType and nodes based on
+    on their EdgeType and nodes based on
     their depth in the graph.
     '''
     edge_types: EdgeTypes = {}
@@ -272,5 +351,7 @@ def place_on_grid(
     _, node_depths = _get_edge_info(node)
 
     for sub_node, depth in node_depths.items():
-        sub_grid = grid.add_node(sub_node, y=depth)
+        sub_grid = grid.add_sub_grid(sub_node, y=depth)
         place_on_grid(sub_node, sub_grid)
+
+    return grid

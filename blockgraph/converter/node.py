@@ -124,15 +124,18 @@ class Node:
         '''
         return ','.join(node.name for node in nodes)
 
-    def __str__(self):
-        return '{} <{}x{}> ({})({}) [{}][{}]'.format(
-            self.name, 
-            self.width,
-            self.height,
+    def _str_edges(self):
+        return 'loc:({})({}),oth:[{}][{}]'.format(
             self._node_names(self.local_prev),
             self._node_names(self.local_next),
             self._node_names(self.other_prev),
             self._node_names(self.other_next),
+        )
+
+    def __str__(self):
+        return '{}-{}'.format(
+            self.name, 
+            self._str_edges(),
         )
 
     def __repr__(self):
@@ -201,3 +204,10 @@ class Region(Node):
     @property
     def height(self) -> int:
         return 100
+
+    def __str__(self):
+        return '{}-<{}>,{}'.format(
+            self.name, 
+            self._node_names(self.nodes_sorted),
+            self._str_edges(),
+        )
