@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 from typing import Optional, Iterable, Sequence, Dict, List
-import weakref
+from weakref import ref
 
 class Node:
     def __init__(self, 
@@ -23,6 +23,8 @@ class Node:
         *args, **kwargs
     ):
         self.name = name
+
+        self._in_region: Optional[ref[Region]] = None
         self.in_region = in_region
 
         self.is_region = False
@@ -37,14 +39,32 @@ class Node:
         self._print_node(depth)
 
     @property
-    def in_region(self):
+    def in_region(self) -> Region:
         return None if self._in_region is None else self._in_region()
 
     @in_region.setter
-    def in_region(self, in_region: Optional[Region] = None):
-        self._in_region = None if in_region is None else weakref.ref(in_region)
+    def in_region(self, in_region: Region):
+        ''' Set which region this node is in.
+
+        This involves both removing the node from the region,
+        as well as removing which region the node itself
+        points to.
+        '''
+        # Delete old mapping
         if self.in_region is not None:
-            self.in_region._add_node(self)
+            assert self.name in self.in_region.nodes_map
+            del self.in_region.nodes_map[self.name]
+
+        # If new value is "None", nothing left to do
+        if in_region is None:
+            self._in_region = None
+            return
+
+        self._in_region = ref(in_region)
+
+        # Set new mapping
+        assert self.name not in self.in_region.nodes_map
+        self.in_region.nodes_map[self.name] = self
 
     def add_edge(self, to_node: Node):
         ''' "self" is the from_node from which
@@ -110,14 +130,6 @@ class Node:
     def other_prev_map(self) -> Dict[str, Node]:
         return self._nodes_to_map(self.other_prev)
 
-    @property
-    def width(self) -> int:
-        return max(1, len(list(self.local_prev)), len(list(self.local_next)))
-
-    @property
-    def height(self) -> int:
-        return max(1, len(list(self.other_prev)), len(list(self.other_next)))
-
     def _node_names(self, nodes: Iterable[Node]) -> str:
         ''' Only return a string of the anode names
         for the given list of nodes.
@@ -152,10 +164,6 @@ class Region(Node):
         super().__init__(name, in_region)
         self.is_region = True
         self.nodes_map: Dict[str, Node] = {}
-
-    def _add_node(self, node: Node) -> None:
-        assert node.name not in self.nodes_map
-        self.nodes_map[node.name] = node
 
     @property
     def nodes(self) -> Iterable[Node]:
@@ -196,14 +204,6 @@ class Region(Node):
     @property
     def is_empty(self):
         return len(self.nodes) == 0
-
-    @property
-    def width(self) -> int:
-        return 100
-
-    @property
-    def height(self) -> int:
-        return 100
 
     def __str__(self):
         return '{}-<{}>,{}'.format(

@@ -37,6 +37,23 @@ def test_add_node_to_region(regions):
     assert n1.in_region == r1 and n2.in_region == r1 and r2.in_region == r1
     assert len(r1.nodes) == 3
 
+def test_change_node_region(regions):
+    r1, r2 = regions
+    n1 = Node('node1')
+    n1.in_region = r1
+    n1.in_region = r2
+    assert n1 in r2.nodes
+    assert n1 not in r1.nodes
+    assert n1.in_region == r2
+
+def test_unset_node_region(regions):
+    r1, r2 = regions
+    n1 = Node('node1')
+    n1.in_region = r1
+    n1.in_region = None
+    assert n1 not in r1.nodes
+    assert n1.in_region == None
+
 def test_add_edge():
     a = Node('a')
     b = Node('b')
@@ -111,39 +128,6 @@ def test_local_nodes(regions):
     assert x in a.other_next and x not in a.local_next
     assert c in a.local_prev and c not in a.other_prev
     assert y in a.other_prev and y not in a.local_prev
-
-def test_node_dimensions_default():
-    a = Node('a')
-    assert a.width == 1
-    assert a.height == 1
-
-def test_node_dimensions_local(regions):
-    r1, r2 = regions
-    a = Node('a', r1)
-    b = Node('b', r1)
-    c = Node('c', r1)
-    a.add_edge(b)
-    assert a.width == 1
-    a.add_edge(c)
-    assert a.width == 2
-    b.add_edge(c)
-    assert c.width == 2
-    assert a.height == 1
-    assert c.height == 1
-
-def test_node_dimensions_other(regions):
-    r1, r2 = regions
-    a = Node('a', r1)
-    x = Node('x', r2)
-    y = Node('y', r2)
-    a.add_edge(x)
-    assert a.height == 1
-    a.add_edge(y)
-    assert a.height == 2
-    a.add_edge(y)
-    assert y.height == 2
-    assert a.width == 1
-    assert y.width == 1
 
 def test_is_region(regions):
     r1, _ = regions
