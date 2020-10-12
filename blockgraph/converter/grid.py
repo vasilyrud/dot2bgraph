@@ -40,20 +40,43 @@ class Grid:
                   |                 |
         + - - +   + - - - - - - - - +
         | 0,2 |
-        + - - +
-
-        + - - + +       + - - - +
-        | 0,4   |       | 2,4   |
-        + - - - +       + - - - +
+        + - - + + - - - +
+        | 0,4   | 2,4   |
+        + - - - + - - - +
     '''
 
     MIN_INDEX=0
 
-    def __init__(self, node: Node):
+    def __init__(self, 
+        node: Node,
+        padding_l: Optional[int] = 1,
+        padding_r: Optional[int] = 1,
+        padding_t: Optional[int] = 1,
+        padding_b: Optional[int] = 1,
+        space_col: Optional[int] = 1,
+        space_row: Optional[int] = 1,
+    ):
         ''' In a hierarchy of grids, only the top-level Grid
         has to be explicitly created.
+
+        :param node: Node from which this Grid is made
+
+        :param padding_l: Space to left   side of grid
+        :param padding_r: Space to right  side of grid
+        :param padding_t: Space to top    side of grid
+        :param padding_b: Space to bottom side of grid
+
+        :param space_col: Space between grid columns
+        :param space_row: Space between grid rows
         '''
         self.node = node
+
+        self.padding_l = padding_l
+        self.padding_r = padding_r
+        self.padding_t = padding_t
+        self.padding_b = padding_b
+        self.space_col = space_col
+        self.space_row = space_row
 
         self._node2coord: Dict[Node,Tuple[int,int]] = {}
         self._node2grid:  Dict[Node,Grid] = {}
@@ -88,6 +111,55 @@ class Grid:
             assert len(self._coord2node) == 0
             return True
         return False
+
+    def _row_width(self, row) -> int:
+        return (
+            sum(
+                self._node2grid[node].width + self.space_col
+                for node in row.values()
+            )
+            - self.space_col
+        )
+
+    def _row_widths(self) -> int:
+        return [self._row_width(row) for row in self._coord2node.values()]
+
+    @property
+    def width(self) -> int:
+        row_widths = self._row_widths()
+        row_widths_tot = 0
+        if row_widths:
+            row_widths_tot = max(row_widths) + self.padding_l + self.padding_r
+
+        return max(
+            1, 
+            row_widths_tot,
+            len(list(self.node.local_next)), 
+            len(list(self.node.local_prev))
+        )
+
+    def _row_height(self, row) -> int:
+        return max(
+            self._node2grid[node].height
+            for node in row.values()
+        )
+
+    def _row_heights(self) -> int:
+        return [self._row_height(row) for row in self._coord2node.values()]
+
+    @property
+    def height(self) -> int:
+        row_heights = self._row_heights()
+        row_heights_tot = 0
+        if row_heights:
+            row_heights_tot = sum(row_heights) + (len(row_heights) - 1)*self.space_row + self.padding_t + self.padding_b
+
+        return max(
+            1, 
+            row_heights_tot,
+            len(list(self.node.other_next)), 
+            len(list(self.node.other_prev))
+        )
 
     def get_sub_grid(self, node: Node) -> Grid:
         return self._node2grid[node]
@@ -125,7 +197,14 @@ class Grid:
 
         assert node not in self._node2coord, 'Node {} already placed.'.format(node)
         self._node2coord[node] = (use_x,use_y)
-        new_grid = Grid(node)
+        new_grid = Grid(node,
+            padding_l=self.padding_l,
+            padding_r=self.padding_r,
+            padding_t=self.padding_t,
+            padding_b=self.padding_b,
+            space_col=self.space_col,
+            space_row=self.space_row,
+        )
         self._node2grid[node] = new_grid
 
         assert use_x not in self._coord2node[use_y], 'Location ({},{}) already occupied.'.format(use_x, use_y)
