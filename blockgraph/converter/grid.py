@@ -134,8 +134,7 @@ class Grid:
         return max(
             1, 
             row_widths_tot,
-            len(list(self.node.local_next)), 
-            len(list(self.node.local_prev))
+            self.node.width,
         )
 
     def _row_height(self, row) -> int:
@@ -157,8 +156,7 @@ class Grid:
         return max(
             1, 
             row_heights_tot,
-            len(list(self.node.other_next)), 
-            len(list(self.node.other_prev))
+            self.node.height,
         )
 
     def get_sub_grid(self, node: Node) -> Grid:

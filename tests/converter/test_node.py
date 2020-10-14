@@ -140,3 +140,31 @@ def test_is_empty(regions):
     assert r2.is_empty
     n1 = Node('n1', r2)
     assert not r2.is_empty
+
+def test_dimension_default():
+    n1 = Node('n1')
+    assert n1.width  == 1
+    assert n1.height == 1
+
+def test_dimension_multiple(regions):
+    r1, r2 = regions
+    n1 = Node('n1', r1)
+
+    # local
+    n2 = Node('n2', r1)
+    n3 = Node('n3', r1)
+    n4 = Node('n4', r1)
+    n1.add_edge(n2)
+    n1.add_edge(n3)
+    n1.add_edge(n4)
+
+    # other
+    n5 = Node('n5', r2)
+    n6 = Node('n6', r2)
+    n7 = Node('n7', r2)
+    n1.add_edge(n5)
+    n1.add_edge(n6)
+    n1.add_edge(n7)
+
+    assert n1.width  == 3
+    assert n1.height == 3

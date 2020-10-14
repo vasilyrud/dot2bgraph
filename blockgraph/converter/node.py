@@ -32,12 +32,6 @@ class Node:
         self.prev: List[Node] = []
         self.next: List[Node] = []
 
-    def _print_node(self, depth):
-        print('{}{}'.format(depth*'  ', self))
-
-    def print_nodes(self, depth: int = 0):
-        self._print_node(depth)
-
     @property
     def in_region(self) -> Region:
         return None if self._in_region is None else self._in_region()
@@ -65,6 +59,22 @@ class Node:
         # Set new mapping
         assert self.name not in self.in_region.nodes_map
         self.in_region.nodes_map[self.name] = self
+
+    @property
+    def width(self):
+        return max(
+            1,
+            len(list(self.local_prev)),
+            len(list(self.local_next)), 
+        )
+
+    @property
+    def height(self):
+        return max(
+            1,
+            len(list(self.other_prev)),
+            len(list(self.other_next)), 
+        )
 
     def add_edge(self, to_node: Node):
         ''' "self" is the from_node from which
@@ -129,6 +139,12 @@ class Node:
     @property
     def other_prev_map(self) -> Dict[str, Node]:
         return self._nodes_to_map(self.other_prev)
+
+    def _print_node(self, depth):
+        print('{}{}'.format(depth*'  ', self))
+
+    def print_nodes(self, depth: int = 0):
+        self._print_node(depth)
 
     def _node_names(self, nodes: Iterable[Node]) -> str:
         ''' Only return a string of the anode names
