@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 from typing import Dict, Tuple, List, Set, NewType
-from collections import deque
+from collections import deque, OrderedDict
 from enum import Enum, auto
 from itertools import chain
 
@@ -27,7 +27,7 @@ class EdgeType(Enum):
     BACK = auto()
 
 EdgeTypes = NewType('EdgeTypes', Dict[Tuple[Node,Node],EdgeType])
-NodeDepths = NewType('NodeDepths', Dict[Node, int])
+NodeDepths = NewType('NodeDepths', 'OrderedDict[Node, int]')
 
 class Grid:
     ''' An ordering of nodes per-region on a
@@ -413,7 +413,7 @@ def _get_edge_info(
     their depth in the graph.
     '''
     edge_types: EdgeTypes = {}
-    node_depths: NodeDepths = {}
+    node_depths: NodeDepths = OrderedDict()
 
     _get_edge_info_dfs(region, edge_types, node_depths)
 
