@@ -82,19 +82,53 @@ class Grid:
         self._node2grid:  Dict[Node,Grid] = {}
         self._coord2node: Dict[int,Dict[int,Node]] = {} # dict[y][x]
 
-    def _nodes_iter_y(self) -> Iterable[int]:
+    def iter_y(self) -> Iterable[int]:
         return sorted(self._coord2node)
 
-    def _nodes_iter_x(self, y) -> Iterable[int]:
+    def iter_x(self, y) -> Iterable[int]:
         return sorted(self._coord2node[y])
 
     def _nodes_iter(self) -> Iterable[Node]:
         ''' Iterate through sub-nodes by their
         y and then by their x coordinates.
         '''
-        for y in self._nodes_iter_y():
-            for x in self._nodes_iter_x(y):
+        for y in self.iter_y():
+            for x in self.iter_x(y):
                 yield self._coord2node[y][x]
+
+    def iter_offset_y(self) -> Iterable[Tuple[int,int]]:
+        offset = 0
+
+        # y does not necessarily start at 0
+        for i, y in enumerate(self.iter_y()):
+            if i == 0:
+                offset += self.padding_t
+            else:
+                offset += self.space_row
+
+            yield offset, y
+
+            offset += self._row_height(y)
+
+    def iter_offset_x(self, y) -> Iterable[Tuple[int,int]]:
+        offset = 0
+
+        # x does not necessarily start at 0
+        for i, x in enumerate(self.iter_x(y)):
+            if i == 0:
+                offset += self.row_offset(y) + self.padding_l
+            else:
+                offset += self.space_col
+
+            yield offset, x
+
+            offset += self.sub_grid_from_coord(x, y).width
+
+    def row_offset(self, y):
+        return (self.width - self.row_width(y)) // 2
+
+    def row_offset_end(self, y):
+        return self.width - self.row_width(y) - self.row_offset(y)
 
     @property
     def sub_grids(self) -> Iterable[Grid]:
@@ -112,7 +146,14 @@ class Grid:
             return True
         return False
 
-    def _row_width(self, row) -> int:
+    def row_width(self, y) -> int:
+        ''' Get width of a single row, including
+        the padding on the left and right.
+        '''
+        return self._row_width(y) + self.padding_l + self.padding_r
+
+    def _row_width(self, y) -> int:
+        row = self._coord2node[y]
         return (
             sum(
                 self._node2grid[node].width + self.space_col
@@ -122,7 +163,7 @@ class Grid:
         )
 
     def _row_widths(self) -> int:
-        return [self._row_width(row) for row in self._coord2node.values()]
+        return [self._row_width(y) for y in self._coord2node]
 
     @property
     def width(self) -> int:
@@ -137,14 +178,15 @@ class Grid:
             self.node.width,
         )
 
-    def _row_height(self, row) -> int:
+    def _row_height(self, y) -> int:
+        row = self._coord2node[y]
         return max(
             self._node2grid[node].height
             for node in row.values()
         )
 
     def _row_heights(self) -> int:
-        return [self._row_height(row) for row in self._coord2node.values()]
+        return [self._row_height(y) for y in self._coord2node]
 
     @property
     def height(self) -> int:
@@ -159,7 +201,10 @@ class Grid:
             self.node.height,
         )
 
-    def get_sub_grid(self, node: Node) -> Grid:
+    def sub_grid_from_coord(self, x, y) -> Grid:
+        return self.sub_grid_from_node(self._coord2node[y][x])
+
+    def sub_grid_from_node(self, node: Node) -> Grid:
         return self._node2grid[node]
 
     def has_node(self, node: Node) -> bool:
@@ -227,11 +272,13 @@ class Grid:
     def __str__(self):
         string = ''
 
+        string += self.__repr__()
+
         string += '['
-        for i, y in enumerate(self._nodes_iter_y()):
+        for i, y in enumerate(self.iter_y()):
             if i != 0: string += ','
             string += '['
-            for j, x in enumerate(self._nodes_iter_x(y)):
+            for j, x in enumerate(self.iter_x(y)):
                 if j != 0: string += ','
                 string += repr(self._coord2node[y][x])
             string += ']'
