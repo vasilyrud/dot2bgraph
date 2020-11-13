@@ -411,6 +411,10 @@ def test_grid_dimension_non_default(region_nodes):
 def test_grid_dimension_non_default_children(region_nodes):
     r1, n1, n2, n3, n4 = region_nodes
     r2 = Region('r2', r1)
+    n1.in_region = r2
+    n2.in_region = r2
+    n3.in_region = r2
+    n4.in_region = r2
 
     l, r, t, b, col, row = (2, 3, 4, 5, 6, 7)
 

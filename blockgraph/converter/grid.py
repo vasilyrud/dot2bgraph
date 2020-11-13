@@ -226,6 +226,8 @@ class Grid:
         If x is not specified, add to the end of the row.
         Generate a sub-grid for the newly added node.
         '''
+        assert node.in_region == self.node
+
         use_y = y if y is not None else max(
             self._coord2node.keys(), 
             default=Grid.MIN_INDEX

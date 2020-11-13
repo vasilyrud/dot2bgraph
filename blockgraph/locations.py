@@ -59,6 +59,14 @@ class Locations:
         self._check_exists(self._blocks, block_id, 'block')
         return self._blocks[block_id]
 
+    def iter_blocks(self):
+        for i in sorted(self._blocks):
+            yield self._blocks[i]
+
+    def iter_edge_ends(self):
+        for i in sorted(self._edge_ends):
+            yield self._edge_ends[i]
+
     def edge_end(self, edge_end_id: int):
         self._check_exists(self._edge_ends, edge_end_id, 'edge_end')
         return self._edge_ends[edge_end_id]
