@@ -7,7 +7,7 @@ from blockgraph.converter.directed import (
     _create_regions_nodes, _agraph2regions,
     _iter_sub_grid_offsets, _create_locations_blocks,
     _create_locations_edge_ends, _grids2locations,
-    dot2locations,
+    _get_color, dot2locations,
 )
 from blockgraph.converter.node import Node, Region
 from blockgraph.converter.grid import Grid
@@ -37,6 +37,14 @@ def grids():
     grid3_n3 = grid3.add_sub_grid(n3, x=0, y=0)
 
     return grid1, grid1_a1, grid1_z1, grid2, grid3, grid3_n3
+
+@pytest.fixture
+def colors():
+    max_depth = 3
+    return [
+        _get_color(i, max_depth) 
+        for i in range(max_depth+1)
+    ]
 
 def test_issue():
     ''' Graph illustrating graphviz bug that
@@ -443,6 +451,19 @@ def test_create_locations_edges(grids):
     assert edge_ends[5].edge_ends[0] == 7
     assert len(edge_ends[6].edge_ends) == 0
     assert len(edge_ends[7].edge_ends) == 0
+
+def test_get_color_order(colors):
+    assert all(
+        int(colors[i][1:3], 16) > int(colors[i+1][1:3], 16) 
+        for i in range(len(colors)-1)
+    )
+
+def test_get_color_gray(colors):
+    assert all(
+        color[1:3] == color[3:5] and 
+        color[3:5] == color[5:7]
+        for color in colors
+    )
 
 def test_dot2locations():
     dot = '''

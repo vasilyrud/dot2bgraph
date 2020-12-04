@@ -17,6 +17,7 @@ from typing import cast, List, Dict, Set, Tuple, Optional, Iterable, NewType
 import inspect
 
 from pygraphviz import AGraph
+from colour import Color
 
 from blockgraph.converter.node import Node, Region
 from blockgraph.converter.grid import Grid, place_on_grid
@@ -103,8 +104,17 @@ def _agraph2regions(agraph: AGraph) -> Region:
 
     return base_region
 
-def _get_color(depth: int) -> str:
-    return '#cccccc'
+def _get_color(depth: int, max_depth: int) -> str:
+    ''' Provide color shade based on relative depth.
+    '''
+
+    shift = 0.2*max_depth
+    max_val = max_depth + 2*shift
+    val = depth + shift
+    col = 1 - val/max_val
+
+    color = Color(rgb=(col, col, col))
+    return color.hex_l
 
 def _iter_sub_grid_offsets(
     grid: Grid,
@@ -144,6 +154,8 @@ def _create_locations_blocks(
 ) -> NodeToBlockId:
     node_to_block_id: NodeToBlockId = {}
 
+    max_depth = max(item[3] for item in _iter_sub_grid_offsets(grid))
+
     for sub_grid, offset_x, offset_y, depth in _iter_sub_grid_offsets(grid):
         block_id = locs.add_block(
             x=offset_x,
@@ -151,7 +163,7 @@ def _create_locations_blocks(
             width=sub_grid.width,
             height=sub_grid.height,
             depth=depth,
-            color=_get_color(depth),
+            color=_get_color(depth, max_depth),
         )
         node_to_block_id[sub_grid.node] = block_id
 

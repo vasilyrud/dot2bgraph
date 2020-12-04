@@ -55,6 +55,24 @@ class Locations:
     def add_edge(self, from_edge_end_id: int, to_edge_end_id: int):
         self.edge_end(from_edge_end_id)._add_edge_end(self.edge_end(to_edge_end_id))
 
+    @property
+    def width(self):
+        max_x = 0
+        for block in self.iter_blocks():
+            max_x = max(max_x, block.x + block.width)
+        for edge_end in self.iter_edge_ends():
+            max_x = max(max_x, edge_end.x + 1)
+        return max_x
+
+    @property
+    def height(self):
+        max_y = 0
+        for block in self.iter_blocks():
+            max_y = max(max_y, block.y + block.height)
+        for edge_end in self.iter_edge_ends():
+            max_y = max(max_y, edge_end.y + 1)
+        return max_y
+
     def block(self, block_id: int):
         self._check_exists(self._blocks, block_id, 'block')
         return self._blocks[block_id]
@@ -138,6 +156,11 @@ class _Block:
 
         self._edge_ends: Set[_EdgeEnd] = set()
 
+        assert self.x >= 0
+        assert self.y >= 0
+        assert self.width  >= 0
+        assert self.height >= 0
+
     @property
     def coords(self):
         return (self.x, self.y)
@@ -213,6 +236,9 @@ class _EdgeEnd:
         self.direction: Direction = Direction(kwargs.get('direction', Direction.UP))
 
         self._edge_ends: Dict[_EdgeEnd,int] = {}
+
+        assert self.x >= 0
+        assert self.y >= 0
 
     @property
     def coords(self):

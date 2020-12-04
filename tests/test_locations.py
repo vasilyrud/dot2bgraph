@@ -37,6 +37,13 @@ def test_add_block():
     assert locs.block(b1).coords == (5,0)
     assert locs.block(b2).coords == (0,8)
 
+def test_add_block_invalid():
+    locs = Locations()
+    with pytest.raises(AssertionError):
+        locs.add_block(x=-1)
+    with pytest.raises(AssertionError):
+        locs.add_block(width=-1)
+
 def test_block_ids():
     locs = Locations()
     b0, b1, b2 = _make_blocks(locs)
@@ -101,6 +108,11 @@ def test_del_edge_end_from_block():
     with pytest.raises(KeyError):
         locs.block(b0)._del_edge_end(locs.edge_end(e0))
 
+def test_add_edge_end_invalid():
+    locs = Locations()
+    with pytest.raises(AssertionError):
+        locs.add_edge_end(x=-1)
+
 def test_add_edge():
     locs = Locations()
     e0, e1 = _make_edge_ends(locs)
@@ -145,6 +157,23 @@ def test_direction_eq():
 def test_direction_hash():
     dir1, dir2, dir3 = _make_directions()
     assert len(set((dir1, dir2, dir3))) == 2
+
+def test_locations_dimension_empty():
+    locs = Locations()
+    assert locs.width  == 0
+    assert locs.height == 0
+
+def test_locations_dimension_block():
+    locs = Locations()
+    _, _, _ = _make_blocks(locs)
+    assert locs.width  == 6
+    assert locs.height == 9
+
+def test_locations_dimension_edge_end():
+    locs = Locations()
+    _, _ = _make_edge_ends(locs)
+    assert locs.width  == 6
+    assert locs.height == 9
 
 def test_locations_to_obj():
     locs = Locations()
