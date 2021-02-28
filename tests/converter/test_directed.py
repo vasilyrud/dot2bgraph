@@ -445,10 +445,10 @@ def test_create_locations_edges(grids):
     edge_ends = list(locs.iter_edge_ends())
     assert len(edge_ends[0].edge_ends) == 0
     assert len(edge_ends[1].edge_ends) == 0
-    assert edge_ends[2].edge_ends[0] == 0
-    assert edge_ends[3].edge_ends[0] == 1
-    assert edge_ends[4].edge_ends[0] == 6
-    assert edge_ends[5].edge_ends[0] == 7
+    assert edge_ends[2].edge_ends[0] == 1
+    assert edge_ends[3].edge_ends[0] == 2
+    assert edge_ends[4].edge_ends[0] == 7
+    assert edge_ends[5].edge_ends[0] == 8
     assert len(edge_ends[6].edge_ends) == 0
     assert len(edge_ends[7].edge_ends) == 0
 
