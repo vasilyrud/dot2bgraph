@@ -27,9 +27,9 @@ class Locations:
     track of IDs from the Locations object.
     '''
     def __init__(self):
-        self._blocks_id_counter = 0
+        self._blocks_id_counter = 1
         self._blocks = {} # Use dict as Blocks can be deleted
-        self._edge_ends_id_counter = 0
+        self._edge_ends_id_counter = 1
         self._edge_ends: Dict[int, _EdgeEnd] = {}
 
     def add_block(self, *args, **kwargs):
@@ -150,7 +150,7 @@ class _Block:
         self.y = kwargs.get('y', 0)
         self.width  = kwargs.get('width',  1)
         self.height = kwargs.get('height', 1)
-        self.depth = kwargs.get('depth', 0)
+        self.depth = kwargs.get('depth', 1)
         self.color = Color(kwargs.get('color', '#cccccc'))
         self.shape = kwargs.get('shape', 'box')
 

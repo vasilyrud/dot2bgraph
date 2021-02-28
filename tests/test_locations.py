@@ -1,4 +1,7 @@
 import pytest
+import pathlib
+import json
+import jsonschema
 
 from blockgraph.locations import Locations, _Block, _EdgeEnd, Direction
 
@@ -19,16 +22,46 @@ def _make_directions():
     dir3 = Direction.UP
     return dir1, dir2, dir3
 
+def _make_complex_locations():
+    locs = Locations()
+
+    b0, b1, b2 = _make_blocks(locs)
+    locs.del_block(b0)
+    e0, e1 = _make_edge_ends(locs)
+    locs.assign_edge_to_block(e0, b1)
+    locs.assign_edge_to_block(e1, b2)
+    locs.add_edge(e0, e1)
+
+    return locs
+
+def _reload_locs(locs):
+    ''' Simulate Locations being loaded in elsewhere.
+    '''
+    return json.loads(
+        json.dumps(locs.to_obj())
+    )
+
+@pytest.fixture
+def schema():
+    return json.loads(
+        pathlib.Path(__file__)
+            .parent
+            .joinpath('../../schema')
+            .joinpath('bgraph.json')
+            .read_text()
+    )
+
 def test_locations_init():
     locs = Locations()
-    assert locs._blocks_id_counter == 0
-    assert locs._edge_ends_id_counter == 0
+    assert locs._blocks_id_counter == 1
+    assert locs._edge_ends_id_counter == 1
 
 def test_add_block_default():
     locs = Locations()
     b0, _, _ = _make_blocks(locs)
     assert locs.block(b0).coords == (0,0)
     assert locs.block(b0).size == (1,1)
+    assert locs.block(b0).depth == 1
 
 def test_add_block():
     locs = Locations()
@@ -47,9 +80,9 @@ def test_add_block_invalid():
 def test_block_ids():
     locs = Locations()
     b0, b1, b2 = _make_blocks(locs)
-    assert b0 == 0
-    assert b1 == 1
-    assert b2 == 2
+    assert b0 == 1
+    assert b1 == 2
+    assert b2 == 3
 
 def test_del_block():
     locs = Locations()
@@ -58,7 +91,7 @@ def test_del_block():
     locs.del_block(b0)
     assert len(locs._blocks) == 2
     b3 = locs.add_block()
-    assert b3 == 3
+    assert b3 == 4
     with pytest.raises(KeyError):
         locs.block(b0)
 
@@ -79,8 +112,8 @@ def test_add_edge_end():
 def test_edge_end_ids():
     locs = Locations()
     e0, e1 = _make_edge_ends(locs)
-    assert e0 == 0
-    assert e1 == 1
+    assert e0 == 1
+    assert e1 == 2
 
 def test_del_edge_end():
     locs = Locations()
@@ -89,7 +122,7 @@ def test_del_edge_end():
     locs.del_edge_end(e0)
     assert len(locs._edge_ends) == 1
     e2 = locs.add_edge_end()
-    assert e2 == 2
+    assert e2 == 3
     with pytest.raises(KeyError):
         locs.edge_end(e0)
 
@@ -176,47 +209,45 @@ def test_locations_dimension_edge_end():
     assert locs.height == 9
 
 def test_locations_to_obj():
-    locs = Locations()
-
-    b0, b1, b2 = _make_blocks(locs)
-    locs.del_block(b0)
-    e0, e1 = _make_edge_ends(locs)
-    locs.assign_edge_to_block(e0, b1)
-    locs.assign_edge_to_block(e1, b2)
-    locs.add_edge(e0, e1)
-
-    # print()
-    # locs.print_locations()
+    locs = _make_complex_locations()
 
     assert locs.to_obj() == {
         'blocks': {
-            1: {
+            2: {
                 'x': 5,'y': 0,
                 'width': 1,'height': 1,
-                'depth': 0,
-                'color': '#cccccc',
-                'shape': 'box',
-                'edge_ends': [0],
-            },
-            2: {
-                'x': 0,'y': 8,
-                'width': 1,'height': 1,
-                'depth': 0,
+                'depth': 1,
                 'color': '#cccccc',
                 'shape': 'box',
                 'edge_ends': [1],
+            },
+            3: {
+                'x': 0,'y': 8,
+                'width': 1,'height': 1,
+                'depth': 1,
+                'color': '#cccccc',
+                'shape': 'box',
+                'edge_ends': [2],
             },
         },
         'edge_ends': {
-            0: {
+            1: {
                 'x': 5,'y': 1,
                 'direction': 'down',
-                'edge_ends': [1],
+                'edge_ends': [2],
             },
-            1: {
+            2: {
                 'x': 1,'y': 8,
                 'direction': 'right',
                 'edge_ends': [],
             },
         },
     }
+
+def test_locations_empty_schema(schema):
+    locs = Locations()
+    jsonschema.validate(instance=_reload_locs(locs), schema=schema)
+
+def test_locations_schema(schema):
+    locs = _make_complex_locations()
+    jsonschema.validate(instance=_reload_locs(locs), schema=schema)
