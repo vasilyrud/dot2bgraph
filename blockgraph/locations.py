@@ -54,6 +54,10 @@ class Locations:
 
     def add_edge(self, from_edge_end_id: int, to_edge_end_id: int):
         self.edge_end(from_edge_end_id)._add_edge_end(self.edge_end(to_edge_end_id))
+        self.edge_end(to_edge_end_id)._add_edge_end(self.edge_end(from_edge_end_id))
+
+        self.edge_end(from_edge_end_id).is_source = True
+        assert self.edge_end(to_edge_end_id).is_source == False
 
     @property
     def width(self):
@@ -109,14 +113,16 @@ class Locations:
 
     def to_obj(self):
         obj = {
-            'blocks': {
-                block_id: block.to_obj() 
-                for block_id, block in self._blocks.items()
-            },
-            'edge_ends': {
-                edge_end_id: edge_end.to_obj() 
-                for edge_end_id, edge_end in self._edge_ends.items()
-            },
+            'width':  self.width,
+            'height': self.height,
+            'blocks': [
+                block.to_obj() 
+                for block in self._blocks.values()
+            ],
+            'edgeEnds': [
+                edge_end.to_obj() 
+                for edge_end in self._edge_ends.values()
+            ],
         }
 
         return obj
@@ -152,7 +158,6 @@ class _Block:
         self.height = kwargs.get('height', 1)
         self.depth = kwargs.get('depth', 1)
         self.color = Color(kwargs.get('color', '#cccccc'))
-        self.shape = kwargs.get('shape', 'box')
 
         self._edge_ends: Set[_EdgeEnd] = set()
 
@@ -181,14 +186,22 @@ class _Block:
             raise KeyError('{} does not contain {} with id={}.'.format(self, 'edge_end', edge_end.edge_end_id))
         self._edge_ends.remove(edge_end)
 
+    @property
+    def int_color(self):
+        return (
+            (int(self.color.red  *255) << 16) | 
+            (int(self.color.green*255) <<  8) | 
+            (int(self.color.blue *255) <<  0)
+        )
+
     def to_obj(self):
         return {
+            'id': self.block_id,
             'x': self.x,'y': self.y,
             'width': self.width,'height': self.height,
             'depth': self.depth,
-            'color': self.color.hex_l,
-            'shape': self.shape,
-            'edge_ends': [edge_end.edge_end_id for edge_end in self._edge_ends],
+            'color': self.int_color,
+            'edgeEnds': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
 
     def __eq__(self, other):
@@ -225,8 +238,8 @@ class _EdgeEnd:
     ''' An edge end is the representation of one end of an
     edge in the graph.
 
-    It is bi-directional, but the "direction" property may
-    be used to help visually show directionality.
+    It is directional, with "is_source" and "direction" used 
+    to show directionality.
     '''
     def __init__(self, edge_end_id: int, *args, **kwargs):
         self.edge_end_id = edge_end_id
@@ -234,6 +247,7 @@ class _EdgeEnd:
         self.x: int = kwargs.get('x', 0)
         self.y: int = kwargs.get('y', 0)
         self.direction: Direction = Direction(kwargs.get('direction', Direction.UP))
+        self.is_source: bool = kwargs.get('is_source', False)
 
         self._edge_ends: Dict[_EdgeEnd,int] = {}
 
@@ -266,9 +280,11 @@ class _EdgeEnd:
 
     def to_obj(self):
         return {
+            'id': self.edge_end_id,
             'x': self.x,'y': self.y,
             'direction': str(self.direction),
-            'edge_ends': [edge_end.edge_end_id for edge_end in self._edge_ends],
+            'isSource': self.is_source,
+            'edgeEnds': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
 
     def __eq__(self, other):

@@ -97,8 +97,9 @@ def test_del_block():
 
 def test_add_edge_end_default():
     locs = Locations()
-    b0 = locs.add_edge_end()
-    assert locs.edge_end(b0).coords == (0,0)
+    e0 = locs.add_edge_end()
+    assert locs.edge_end(e0).coords == (0,0)
+    assert locs.edge_end(e0).is_source == False
 
 def test_add_edge_end():
     locs = Locations()
@@ -151,7 +152,17 @@ def test_add_edge():
     e0, e1 = _make_edge_ends(locs)
     locs.add_edge(e0, e1)
     assert e1 in locs.edge_end(e0).edge_ends
-    assert e0 not in locs.edge_end(e1).edge_ends
+    assert e0 in locs.edge_end(e1).edge_ends
+    assert locs.edge_end(e0).is_source == True
+    assert locs.edge_end(e1).is_source == False
+
+def test_add_edge_disallow_both_source_and_dest():
+    locs = Locations()
+    e0, e1 = _make_edge_ends(locs)
+    locs.add_edge(e0, e1)
+    locs.add_edge(e0, e1)
+    with pytest.raises(AssertionError):
+        locs.add_edge(e1, e0)
 
 def test_add_many_edges():
     locs = Locations()
@@ -208,40 +219,60 @@ def test_locations_dimension_edge_end():
     assert locs.width  == 6
     assert locs.height == 9
 
+def test_int_color():
+    locs = Locations()
+    b0 = locs.add_block(x=0, color='#000000')
+    b1 = locs.add_block(x=1, color='#ff0000')
+    b2 = locs.add_block(x=2, color='#0000ff')
+    b3 = locs.add_block(x=3, color='#00ff00')
+    b4 = locs.add_block(x=4, color='#ffffff')
+
+    assert locs.block(b0).int_color == 0
+    assert locs.block(b1).int_color == 16711680
+    assert locs.block(b2).int_color == 255
+    assert locs.block(b3).int_color == 65280
+    assert locs.block(b4).int_color == 16777215
+
 def test_locations_to_obj():
     locs = _make_complex_locations()
 
     assert locs.to_obj() == {
-        'blocks': {
-            2: {
+        'width': 6,
+        'height': 9,
+        'blocks': [
+            {
+                'id': 2,
                 'x': 5,'y': 0,
                 'width': 1,'height': 1,
                 'depth': 1,
-                'color': '#cccccc',
-                'shape': 'box',
-                'edge_ends': [1],
+                'color': 13421772,
+                'edgeEnds': [1],
             },
-            3: {
+            {
+                'id': 3,
                 'x': 0,'y': 8,
                 'width': 1,'height': 1,
                 'depth': 1,
-                'color': '#cccccc',
-                'shape': 'box',
-                'edge_ends': [2],
+                'color': 13421772,
+                'edgeEnds': [2],
             },
-        },
-        'edge_ends': {
-            1: {
+        ],
+        'edgeEnds': [
+            {
+                'id': 1,
                 'x': 5,'y': 1,
                 'direction': 'down',
-                'edge_ends': [2],
+                'isSource': True,
+                'edgeEnds': [2],
             },
-            2: {
+            {
+                'id': 2,
                 'x': 1,'y': 8,
                 'direction': 'right',
-                'edge_ends': [],
+                'isSource': False,
+                'edgeEnds': [1],
             },
-        },
+        ],
     }
 
 def test_locations_empty_schema(schema):
