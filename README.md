@@ -2,16 +2,21 @@
 
 ## Dev
 
+```
+pipenv shell
+pipenv install --dev
+```
+
 ### CLI
 
 ```
-PYTHONPATH=dot2bgraph python3 dot2bgraph <dotfile>
+PYTHONPATH=dot2bgraph python dot2bgraph <dotfile>
 ```
 
 ### Pytest
 
 ```
-PYTHONPATH=dot2bgraph python3 -m pytest -s
+PYTHONPATH=dot2bgraph python -m pytest -s --cov-report term-missing --cov=dot2bgraph
 ```
 
 ### Mypy
