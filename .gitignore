@@ -1,0 +1,10 @@
+.vscode
+**/.DS_Store
+
+__pycache__/
+.pytest_cache/
+.coverage
+.mypy_cache
+**/*.pyc
+
+notes
