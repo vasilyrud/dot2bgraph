@@ -15,6 +15,8 @@
 from __future__ import annotations
 from typing import cast, List, Dict, Set, Tuple, Optional, Iterable, NewType
 import inspect
+import glob
+import os
 
 from pygraphviz import AGraph
 from colour import Color
@@ -57,6 +59,25 @@ def _direct_nodes(
 
     return direct_nodes
 
+def _direct_edges(
+    agraph: AGraph, 
+    seen_edges: Set[Tuple[str,str]],
+) -> Set[Tuple[str,str]]:
+    ''' Get direct edges in the same way as with
+    nodes in _direct_nodes.
+    '''
+    assert agraph is not None, 'AGraph is None'
+
+    all_edges = set(agraph.edges())
+    sub_agraph_edges = set()
+
+    for sub_agraph in _sorted_subgraphs(agraph):
+        sub_agraph_edges.update(sub_agraph.edges())
+
+    direct_edges = all_edges - sub_agraph_edges - seen_edges
+
+    return direct_edges
+
 def _create_regions_nodes(
     agraph: AGraph,
     parent_region: Optional[Region] = None,
@@ -81,6 +102,39 @@ def _create_regions_nodes(
         )
 
     return cur_region, anodes_to_nodes
+
+def _populate_subgraph(
+    to_subgraph: AGraph,
+    from_subgraph: AGraph,
+    node_namespace: str,
+    in_seen_nodes: Optional[Set[str]] = None,
+    in_seen_edges: Optional[Set[str,str]] = None,
+) -> None:
+    ''' Copies from_subgraph recursively into to_subgraph.
+    '''
+    seen_nodes: Set[str] = set() if in_seen_nodes is None else in_seen_nodes
+    seen_edges: Set[Tuple[str,str]] = set() if in_seen_edges is None else in_seen_edges
+
+    for from_node in _direct_nodes(from_subgraph, seen_nodes):
+        anode_name = f'{node_namespace}:{from_node}'
+        to_subgraph.add_node(anode_name)
+        seen_nodes.add(anode_name)
+
+    for from_edge in _direct_edges(from_subgraph, seen_edges):
+        edge_name = (f'{node_namespace}:{from_edge[0]}',f'{node_namespace}:{from_edge[1]}')
+        to_subgraph.add_edge(edge_name)
+        seen_edges.add(edge_name)
+
+    for sub_from_subgraph in _sorted_subgraphs(from_subgraph):
+        subgraph_name = f'{node_namespace}:{sub_from_subgraph.name}'
+        sub_to_subgraph = to_subgraph.add_subgraph(name=subgraph_name)
+
+        _populate_subgraph(
+            sub_to_subgraph,
+            sub_from_subgraph,
+            node_namespace,
+            seen_nodes,
+        )
 
 def _create_edges(
     base_agraph: AGraph, 
@@ -313,12 +367,43 @@ def _grids2locations(
 
     return locs
 
-def dot2locations(dot: str) -> Locations:
-
-    agraph = AGraph(string=dot)
-
+def agraph2locations(agraph: AGraph) -> Locations:
     base_region = _agraph2regions(agraph)
     base_grid = _regions2grids(base_region)
-    locations = _grids2locations(base_grid)
+    return _grids2locations(base_grid)
 
-    return locations
+def dot2locations(dotfile: str) -> Locations:
+    assert os.path.isfile(dotfile)
+
+    with open(dotfile, 'r') as f:
+        dot = ''.join(f.readlines())
+
+    agraph = AGraph(string=dot)
+    return agraph2locations(agraph)
+
+def dots2locations(dotdir: str):
+    assert os.path.isdir(dotdir)
+
+    root_dir = os.path.expanduser(dotdir)
+    root_name = os.path.split(root_dir)[-1]
+
+    agraph = AGraph(strict=False, directed=True, name=root_name)
+
+    for filename in glob.iglob(os.path.join(root_dir, '**/*.dot'), recursive=True):
+        path = os.path.normpath(os.path.relpath(filename, root_dir))
+        split_path = path.split(os.sep)
+
+        prev_subgraph = agraph
+        prev_dir = root_name
+        for dir in split_path:
+            next_dir = os.path.join(prev_dir, dir)
+            prev_subgraph = prev_subgraph.add_subgraph(name=next_dir)
+            prev_dir = next_dir
+
+        with open(filename, 'r') as f:
+            dot = ''.join(f.readlines())
+
+        from_agraph = AGraph(string=dot)
+        _populate_subgraph(prev_subgraph, from_agraph, os.path.join(root_name, path))
+
+    return agraph2locations(agraph)

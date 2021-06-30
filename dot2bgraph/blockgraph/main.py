@@ -16,7 +16,7 @@ import argparse
 import json
 import sys
 
-from blockgraph.converter.directed import dot2locations
+from blockgraph.converter.directed import dot2locations, dots2locations
 from blockgraph.image import locations2image
 
 def output_locations(args, locations):
@@ -28,23 +28,22 @@ def output_locations(args, locations):
         image = locations2image(locations)
         image.show()
 
-    else:
-        print('Invalid output format specified.')
-        sys.exit(1)
-
 def main():
     parser = argparse.ArgumentParser(
         description='bgraph: large graph visualization')
 
     parser.add_argument('dotfile',
         help='Path to dot file input.')
-    parser.add_argument('--format', choices=['json', 'png'], default='json',
+    parser.add_argument('-f', '--format', choices=['json', 'png', 'none'], default='json',
         help='Format of the output.')
+    parser.add_argument('-R', '--recursive', action='store_true',
+        help='Look for dot files recursively and make directory structure part of the graph.')
 
     args = parser.parse_args()
 
-    with open(args.dotfile, 'r') as f:
-        dot = ''.join(f.readlines())
+    if args.recursive:
+        locations = dots2locations(args.dotfile)
+    else:
+        locations = dot2locations(args.dotfile)
 
-    locations = dot2locations(dot)
     output_locations(args, locations)

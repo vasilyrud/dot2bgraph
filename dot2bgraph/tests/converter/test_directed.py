@@ -466,7 +466,7 @@ def test_get_color_gray(colors):
         for color in colors
     )
 
-def test_dot2locations():
+def test_dot2locations(tmp_path):
     dot = '''
     digraph X {
         subgraph cluster_A {
@@ -486,7 +486,10 @@ def test_dot2locations():
     }
     '''
 
-    locs = dot2locations(dot)
+    dotfile = tmp_path / 'test.dot'
+    dotfile.write_text(dot)
+
+    locs = dot2locations(dotfile)
     assert len(locs._blocks) == 9
 
     blocks = list(locs.iter_blocks())

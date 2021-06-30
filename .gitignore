@@ -6,5 +6,7 @@ __pycache__/
 .coverage
 .mypy_cache
 **/*.pyc
+.venv
 
 notes
+experiments
