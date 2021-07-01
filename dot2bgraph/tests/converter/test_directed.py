@@ -545,7 +545,7 @@ def test_recursive_agraph_dir_single_file(tmp_path):
     ex = dir/'ex.dot'
     ex.write_text('digraph G { A; }')
 
-    agraph = _recursive_agraph(dir)
+    agraph = _recursive_agraph(dir.resolve())
     assert agraph.name == 'dir'
     assert agraph.get_subgraph('dir/ex.dot') is not None
     assert agraph.has_node('dir/ex.dot:A')

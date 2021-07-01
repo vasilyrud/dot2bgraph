@@ -383,25 +383,25 @@ def dot2locations(dotfile: Path) -> Locations:
 def _recursive_agraph(dotdir: Path) -> AGraph:
     assert dotdir.is_dir()
 
-    root_dir = dotdir.expanduser()
-    root_name = os.path.split(root_dir)[-1]
+    root_path = dotdir.expanduser()
+    root_folder = os.path.split(root_path)[-1]
 
-    agraph = AGraph(strict=False, directed=True, name=root_name)
+    agraph = AGraph(strict=False, directed=True, name=root_folder)
 
-    for filename in sorted(glob.iglob(os.path.join(root_dir, '**/*.dot'), recursive=True)):
-        dotfile = Path(filename)
-        path = os.path.normpath(os.path.relpath(filename, root_dir))
-        split_path = path.split(os.sep)
+    for found_file in sorted(glob.iglob(os.path.join(root_path, '**/*.dot'), recursive=True)):
+        dotfile = Path(found_file)
+        rel_path = os.path.normpath(os.path.relpath(dotfile, root_path))
+        split_path = rel_path.split(os.sep)
 
         prev_subgraph = agraph
-        prev_dir = root_name
-        for dir in split_path:
-            next_dir = os.path.join(prev_dir, dir)
-            prev_subgraph = prev_subgraph.add_subgraph(name=next_dir)
-            prev_dir = next_dir
+        prev_folder = root_folder
+        for folder in split_path:
+            cur_folder = os.path.join(prev_folder, folder)
+            prev_subgraph = prev_subgraph.add_subgraph(name=cur_folder)
+            prev_folder = cur_folder
 
         from_agraph = AGraph(string=dotfile.read_text())
-        _populate_subgraph(prev_subgraph, from_agraph, os.path.join(root_name, path))
+        _populate_subgraph(prev_subgraph, from_agraph, os.path.join(root_folder, rel_path))
 
     return agraph
 
