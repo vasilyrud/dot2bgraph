@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
+
 import argparse
 import json
 
@@ -40,9 +42,10 @@ def main():
 
     args = parser.parse_args()
 
+    path = Path(args.dotfile)
     if args.recursive:
-        locations = dots2locations(args.dotfile)
+        locations = dots2locations(path)
     else:
-        locations = dot2locations(args.dotfile)
+        locations = dot2locations(path)
 
     output_locations(args, locations)

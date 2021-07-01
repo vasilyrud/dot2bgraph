@@ -1,13 +1,14 @@
+import os
 import pytest
 
 from pygraphviz import AGraph
 
 from blockgraph.converter.directed import (
-    _sorted_subgraphs, _direct_nodes, 
+    _sorted_subgraphs, _direct_nodes, _direct_edges,
     _create_regions_nodes, _agraph2regions,
-    _iter_sub_grid_offsets, _create_locations_blocks,
-    _create_locations_edge_ends, _grids2locations,
+    _iter_sub_grid_offsets, _grids2locations,
     _get_color, dot2locations,
+    _recursive_agraph, dots2locations,
 )
 from blockgraph.converter.node import Node, Region
 from blockgraph.converter.grid import Grid
@@ -108,6 +109,33 @@ def test_direct_nodes():
     direct_nodes = _direct_nodes(cluster_C, set(('a')))
     assert len(direct_nodes) == 1
     assert 'c' in direct_nodes
+
+def test_direct_edges():
+    dot = '''
+    digraph X {
+        subgraph cluster_A {
+            a;
+        }
+        subgraph cluster_C {
+            c;
+            a -> c;
+            c -> b;
+            subgraph cluster_B {
+                b -> a;
+            }
+        }
+    }
+    '''
+    agraph = AGraph(string=dot)
+
+    cluster_A = agraph.get_subgraph('cluster_A')
+    assert _direct_edges(cluster_A, set()) == set()
+
+    cluster_C = agraph.get_subgraph('cluster_C')
+    assert _direct_edges(cluster_C, set()) == {('a', 'c'), ('c', 'b')}
+
+    cluster_B = cluster_C.get_subgraph('cluster_B')
+    assert _direct_edges(cluster_B, set()) == {('b', 'a')}
 
 def test_agraph2regions_empty():
     dot = '''
@@ -466,6 +494,13 @@ def test_get_color_gray(colors):
         for color in colors
     )
 
+def test_dot2locations_dir_input(tmp_path):
+    dir = tmp_path/'dir'
+    os.mkdir(dir)
+
+    with pytest.raises(AssertionError):
+        dot2locations(dir)
+
 def test_dot2locations(tmp_path):
     dot = '''
     digraph X {
@@ -486,7 +521,7 @@ def test_dot2locations(tmp_path):
     }
     '''
 
-    dotfile = tmp_path / 'test.dot'
+    dotfile = tmp_path/'test.dot'
     dotfile.write_text(dot)
 
     locs = dot2locations(dotfile)
@@ -495,3 +530,149 @@ def test_dot2locations(tmp_path):
     blocks = list(locs.iter_blocks())
     assert blocks[0].width  == 33
     assert blocks[0].height == 13
+
+def test_recursive_agraph_file_input(tmp_path):
+    ex = tmp_path/'ex.dot'
+    ex.write_text('digraph G { A; }')
+
+    with pytest.raises(AssertionError):
+        _recursive_agraph(ex)
+
+def test_recursive_agraph_dir_single_file(tmp_path):
+    dir = tmp_path/'dir'
+    os.mkdir(dir)
+
+    ex = dir/'ex.dot'
+    ex.write_text('digraph G { A; }')
+
+    agraph = _recursive_agraph(dir)
+    assert agraph.name == 'dir'
+    assert agraph.get_subgraph('dir/ex.dot') is not None
+    assert agraph.has_node('dir/ex.dot:A')
+
+def test_recursive_agraph_dir_parallel(tmp_path):
+    dir = tmp_path/'dir'
+    os.mkdir(dir)
+
+    dot = '''
+    digraph G {
+        subgraph subA {
+            A;
+            A -> B;
+            subgraph subB {
+                B;
+            }
+        }
+    }
+    '''
+    ex1 = dir/'ex1.dot'
+    ex1.write_text(dot)
+    ex2 = dir/'ex2.dot'
+    ex2.write_text(dot)
+
+    agraph = _recursive_agraph(dir)
+    assert agraph.name == 'dir'
+
+    exsub1 = agraph.get_subgraph('dir/ex1.dot')
+    assert exsub1 is not None
+    exsub1A = exsub1.get_subgraph('dir/ex1.dot:subA')
+    assert exsub1A is not None
+    exsub1B = exsub1A.get_subgraph('dir/ex1.dot:subB')
+    assert exsub1B is not None
+
+    exsub2 = agraph.get_subgraph('dir/ex2.dot')
+    assert exsub2 is not None
+    exsub2A = exsub2.get_subgraph('dir/ex2.dot:subA')
+    assert exsub2A is not None
+    exsub2B = exsub2A.get_subgraph('dir/ex2.dot:subB')
+    assert exsub2B is not None
+
+    assert agraph.has_node('dir/ex1.dot:A')
+    assert agraph.has_node('dir/ex1.dot:B')
+    assert agraph.has_edge('dir/ex1.dot:A', 'dir/ex1.dot:B')
+    assert _direct_nodes(exsub1A, set()) == {'dir/ex1.dot:A'}
+    assert _direct_nodes(exsub1B, set()) == {'dir/ex1.dot:B'}
+
+    assert agraph.has_node('dir/ex2.dot:A')
+    assert agraph.has_node('dir/ex2.dot:B')
+    assert agraph.has_edge('dir/ex2.dot:A', 'dir/ex2.dot:B')
+    assert _direct_nodes(exsub2A, set()) == {'dir/ex2.dot:A'}
+    assert _direct_nodes(exsub2B, set()) == {'dir/ex2.dot:B'}
+
+    assert not agraph.has_edge('dir/ex1.dot:A', 'dir/ex2.dot:B')
+    assert not agraph.has_edge('dir/ex2.dot:A', 'dir/ex1.dot:B')
+
+def test_recursive_agraph_same_in_subdir(tmp_path):
+    dir = tmp_path/'dir'
+    os.mkdir(dir)
+    subdir = dir/'dir'
+    os.mkdir(subdir)
+
+    ex1 = dir/'ex.dot'
+    ex1.write_text('digraph G { A; }')
+    ex2 = subdir/'ex.dot'
+    ex2.write_text('digraph G { A; }')
+
+    agraph = _recursive_agraph(dir)
+    assert agraph.name == 'dir'
+
+    exsub1 = agraph.get_subgraph('dir/ex.dot')
+    assert exsub1 is not None
+    exsubdir = agraph.get_subgraph('dir/dir')
+    assert exsubdir is not None
+    exsub3 = exsubdir.get_subgraph('dir/dir/ex.dot')
+    assert exsub3 is not None
+
+    assert agraph.has_node('dir/ex.dot:A')
+    assert agraph.has_node('dir/dir/ex.dot:A')
+
+def test_recursive_agraph_same_in_subdirs(tmp_path):
+    dir = tmp_path/'dir'
+    os.mkdir(dir)
+    sub1 = dir/'sub1'
+    os.mkdir(sub1)
+    subdir1 = sub1/'dir'
+    os.mkdir(subdir1)
+    sub2 = dir/'sub2'
+    os.mkdir(sub2)
+    subdir2 = sub2/'dir'
+    os.mkdir(subdir2)
+
+    ex1 = subdir1/'ex.dot'
+    ex1.write_text('digraph G { A; }')
+    ex2 = subdir2/'ex.dot'
+    ex2.write_text('digraph G { A; }')
+
+    agraph = _recursive_agraph(dir)
+    assert agraph.name == 'dir'
+
+    exsub1 = agraph.get_subgraph('dir/sub1')
+    assert exsub1 is not None
+    exsubdir1 = exsub1.get_subgraph('dir/sub1/dir')
+    assert exsubdir1 is not None
+    ex1 = exsubdir1.get_subgraph('dir/sub1/dir/ex.dot')
+    assert ex1 is not None
+
+    exsub2 = agraph.get_subgraph('dir/sub2')
+    assert exsub2 is not None
+    exsubdir2 = exsub2.get_subgraph('dir/sub2/dir')
+    assert exsubdir2 is not None
+    ex2 = exsubdir2.get_subgraph('dir/sub2/dir/ex.dot')
+    assert ex2 is not None
+
+    assert agraph.has_node('dir/sub1/dir/ex.dot:A')
+    assert agraph.has_node('dir/sub2/dir/ex.dot:A')
+
+def test_dots2locations(tmp_path):
+    dir = tmp_path/'dir'
+    os.mkdir(dir)
+
+    ex = dir/'ex.dot'
+    ex.write_text('digraph G { A; }')
+
+    locs = dots2locations(dir)
+    assert len(locs._blocks) == 3
+
+    blocks = list(locs.iter_blocks())
+    assert blocks[0].width  == 9
+    assert blocks[0].height == 9

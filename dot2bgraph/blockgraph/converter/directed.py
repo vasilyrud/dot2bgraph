@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 from typing import cast, List, Dict, Set, Tuple, Optional, Iterable, NewType
+from pathlib import Path
 import inspect
 import glob
 import os
@@ -118,11 +119,13 @@ def _populate_subgraph(
     for from_node in _direct_nodes(from_subgraph, seen_nodes):
         anode_name = f'{node_namespace}:{from_node}'
         to_subgraph.add_node(anode_name)
+
         seen_nodes.add(anode_name)
 
     for from_edge in _direct_edges(from_subgraph, seen_edges):
         edge_name = (f'{node_namespace}:{from_edge[0]}',f'{node_namespace}:{from_edge[1]}')
         to_subgraph.add_edge(edge_name)
+
         seen_edges.add(edge_name)
 
     for sub_from_subgraph in _sorted_subgraphs(from_subgraph):
@@ -367,29 +370,26 @@ def _grids2locations(
 
     return locs
 
-def agraph2locations(agraph: AGraph) -> Locations:
+def _agraph2locations(agraph: AGraph) -> Locations:
     base_region = _agraph2regions(agraph)
     base_grid = _regions2grids(base_region)
     return _grids2locations(base_grid)
 
-def dot2locations(dotfile: str) -> Locations:
-    assert os.path.isfile(dotfile)
+def dot2locations(dotfile: Path) -> Locations:
+    assert dotfile.is_file()
+    agraph = AGraph(string=dotfile.read_text())
+    return _agraph2locations(agraph)
 
-    with open(dotfile, 'r') as f:
-        dot = ''.join(f.readlines())
+def _recursive_agraph(dotdir: Path) -> AGraph:
+    assert dotdir.is_dir()
 
-    agraph = AGraph(string=dot)
-    return agraph2locations(agraph)
-
-def dots2locations(dotdir: str):
-    assert os.path.isdir(dotdir)
-
-    root_dir = os.path.expanduser(dotdir)
+    root_dir = dotdir.expanduser()
     root_name = os.path.split(root_dir)[-1]
 
     agraph = AGraph(strict=False, directed=True, name=root_name)
 
-    for filename in glob.iglob(os.path.join(root_dir, '**/*.dot'), recursive=True):
+    for filename in sorted(glob.iglob(os.path.join(root_dir, '**/*.dot'), recursive=True)):
+        dotfile = Path(filename)
         path = os.path.normpath(os.path.relpath(filename, root_dir))
         split_path = path.split(os.sep)
 
@@ -400,10 +400,11 @@ def dots2locations(dotdir: str):
             prev_subgraph = prev_subgraph.add_subgraph(name=next_dir)
             prev_dir = next_dir
 
-        with open(filename, 'r') as f:
-            dot = ''.join(f.readlines())
-
-        from_agraph = AGraph(string=dot)
+        from_agraph = AGraph(string=dotfile.read_text())
         _populate_subgraph(prev_subgraph, from_agraph, os.path.join(root_name, path))
 
-    return agraph2locations(agraph)
+    return agraph
+
+def dots2locations(dotdir: Path) -> Locations:
+    agraph = _recursive_agraph(dotdir)
+    return _agraph2locations(agraph)
