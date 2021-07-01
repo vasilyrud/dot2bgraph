@@ -14,7 +14,6 @@
 
 import argparse
 import json
-import sys
 
 from blockgraph.converter.directed import dot2locations, dots2locations
 from blockgraph.image import locations2image
