@@ -206,14 +206,14 @@ def _iter_sub_grid_offsets(
         )
 
 def _create_locations_blocks(
-    grid: Grid, 
     locs: Locations,
+    sub_grid_offsets: Iterable[Tuple[Grid,int,int,int]],
 ) -> NodeToBlockId:
     node_to_block_id: NodeToBlockId = {}
 
-    max_depth = max(item[3] for item in _iter_sub_grid_offsets(grid))
+    max_depth = max(item[3] for item in sub_grid_offsets)
 
-    for sub_grid, offset_x, offset_y, depth in _iter_sub_grid_offsets(grid):
+    for sub_grid, offset_x, offset_y, depth in sub_grid_offsets:
         block_id = locs.add_block(
             x=offset_x,
             y=offset_y,
@@ -299,14 +299,14 @@ def _create_locations_ee_other_prev(
     )
 
 def _create_locations_edge_ends(
-    grid: Grid, 
     locs: Locations,
+    sub_grid_offsets: Iterable[Tuple[Grid,int,int,int]],
     node_to_block_id: NodeToBlockId,
 ) -> Tuple[EdgeToEdgeEnds,EdgeToEdgeEnds]:
     ee_from: EdgeToEdgeEnds = cast(EdgeToEdgeEnds, {})
     ee_to:   EdgeToEdgeEnds = cast(EdgeToEdgeEnds, {})
 
-    for sub_grid, offset_x, offset_y, depth in _iter_sub_grid_offsets(grid):
+    for sub_grid, offset_x, offset_y, _ in sub_grid_offsets:
         block_id = node_to_block_id[sub_grid.node]
 
         node_from = sub_grid.node
@@ -363,9 +363,10 @@ def _grids2locations(
     locations.
     '''
     locs: Locations = Locations()
+    sub_grid_offsets = list(_iter_sub_grid_offsets(grid))
 
-    node_to_block_id = _create_locations_blocks(grid, locs)
-    ee_from, ee_to = _create_locations_edge_ends(grid, locs, node_to_block_id)
+    node_to_block_id = _create_locations_blocks(locs, sub_grid_offsets)
+    ee_from, ee_to = _create_locations_edge_ends(locs, sub_grid_offsets, node_to_block_id)
     _create_locations_edges(locs, ee_from, ee_to)
 
     return locs
