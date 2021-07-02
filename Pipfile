@@ -8,6 +8,7 @@ pygraphviz = "*"
 colour = "*"
 Pillow = "*"
 tqdm = "*"
+yaspin = "*"
 
 [dev-packages]
 pytest = "*"

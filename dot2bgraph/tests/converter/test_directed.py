@@ -12,7 +12,11 @@ from blockgraph.converter.directed import (
 )
 from blockgraph.converter.node import Node, Region
 from blockgraph.converter.grid import Grid
-from blockgraph.locations import Locations, Direction
+from blockgraph.locations import Direction
+
+# Prevent spinners from printing during tests
+import blockgraph.utils.spinner
+blockgraph.utils.spinner._SPINNER_DISABLE = True
 
 @pytest.fixture
 def grids():

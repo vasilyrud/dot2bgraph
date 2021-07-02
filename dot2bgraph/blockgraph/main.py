@@ -23,11 +23,20 @@ from blockgraph.image import locations2image
 def output_locations(args, locations):
     if args.format == 'json':
         locations_obj = locations.to_obj()
-        print(json.dumps(locations_obj, indent=4))
+
+        if args.output:
+            with open(args.output, 'w') as f:
+                json.dump(locations_obj, f)
+        else:
+            print(json.dumps(locations_obj, indent=4))
 
     elif args.format == 'png':
         image = locations2image(locations)
-        image.show()
+
+        if args.output:
+            image.save(args.output)
+        else:
+            image.show()
 
 def main():
     parser = argparse.ArgumentParser(
@@ -37,6 +46,8 @@ def main():
         help='Path to dot file input.')
     parser.add_argument('-f', '--format', choices=['json', 'png', 'none'], default='json',
         help='Format of the output.')
+    parser.add_argument('-o', '--output',
+        help='Output file to save to.')
     parser.add_argument('-R', '--recursive', action='store_true',
         help='Look for dot files recursively and make directory structure part of the graph.')
 

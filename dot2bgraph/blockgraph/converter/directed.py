@@ -15,13 +15,13 @@
 from __future__ import annotations
 from typing import cast, List, Dict, Set, Tuple, Optional, Iterable, NewType
 from pathlib import Path
-import inspect
 import glob
 import os
 
 from pygraphviz import AGraph
 from colour import Color
 
+from blockgraph.utils.spinner import sp, SPINNER_OK
 from blockgraph.converter.node import Node, Region
 from blockgraph.converter.grid import Grid, place_on_grid
 from blockgraph.locations import Locations, Direction
@@ -362,23 +362,47 @@ def _grids2locations(
     locations.
     '''
     locs: Locations = Locations()
-    sub_grid_offsets = list(_iter_sub_grid_offsets(grid))
 
-    node_to_block_id = _create_locations_blocks(locs, sub_grid_offsets)
-    ee_from, ee_to = _create_locations_edge_ends(locs, sub_grid_offsets, node_to_block_id)
-    _create_locations_edges(locs, ee_from, ee_to)
+    with sp(type='spinner') as spinner:
+        spinner.text = 'Creating bgraph offsets'
+        sub_grid_offsets = list(_iter_sub_grid_offsets(grid))
+
+        spinner.text = 'Creating bgraph blocks'
+        node_to_block_id = _create_locations_blocks(locs, sub_grid_offsets)
+
+        spinner.text = 'Creating bgraph edge ends'
+        ee_from, ee_to = _create_locations_edge_ends(locs, sub_grid_offsets, node_to_block_id)
+
+        spinner.text = 'Creating bgraph edges'
+        _create_locations_edges(locs, ee_from, ee_to)
+
+        spinner.text = 'Creating bgraph'
+        spinner.ok(SPINNER_OK)
 
     return locs
 
 def _agraph2locations(agraph: AGraph) -> Locations:
-    base_region = _agraph2regions(agraph)
-    base_grid = _regions2grids(base_region)
-    return _grids2locations(base_grid)
+    with sp(type='spinner') as spinner:
+        spinner.text = 'Parsing dot graph'
+        base_region = _agraph2regions(agraph)
+        spinner.ok(SPINNER_OK)
+
+    with sp(type='spinner') as spinner:
+        spinner.text='Placing on grid'
+        base_grid = _regions2grids(base_region)
+        spinner.ok(SPINNER_OK)
+
+    locations = _grids2locations(base_grid)
+    
+    return locations
 
 def dot2locations(dotfile: Path) -> Locations:
     assert dotfile.is_file()
     agraph = AGraph(string=dotfile.read_text())
     return _agraph2locations(agraph)
+
+def _dot_files_in_dir(dotdir):
+    return sorted(glob.iglob(os.path.join(dotdir, '**/*.dot'), recursive=True))
 
 def _recursive_agraph(dotdir: Path) -> AGraph:
     assert dotdir.is_dir()
@@ -388,7 +412,10 @@ def _recursive_agraph(dotdir: Path) -> AGraph:
 
     agraph = AGraph(strict=False, directed=True, name=root_folder)
 
-    for found_file in sorted(glob.iglob(os.path.join(root_path, '**/*.dot'), recursive=True)):
+    for found_file in sp(type='bar',
+        items=_dot_files_in_dir(root_path),
+        text='Loading dot file',
+    ):
         dotfile = Path(found_file)
         rel_path = os.path.normpath(os.path.relpath(dotfile, root_path))
         split_path = rel_path.split(os.sep)
