@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Dict, Tuple, List, Set, NewType
+from typing import Dict, Tuple, Set, NewType, Iterable, Optional
 from collections import deque, OrderedDict
 from enum import Enum, auto
 from itertools import chain
@@ -81,6 +81,9 @@ class Grid:
         self._node2coord: Dict[Node,Tuple[int,int]] = {}
         self._node2grid:  Dict[Node,Grid] = {}
         self._coord2node: Dict[int,Dict[int,Node]] = {} # dict[y][x]
+
+        self._width:  Optional[int] = None
+        self._height: Optional[int] = None
 
     def iter_y(self) -> Iterable[int]:
         return sorted(self._coord2node)
@@ -167,16 +170,20 @@ class Grid:
 
     @property
     def width(self) -> int:
+        if self._width is not None:
+            return self._width
+
         row_widths = self._row_widths()
         row_widths_tot = 0
         if row_widths:
             row_widths_tot = max(row_widths) + self.padding_l + self.padding_r
 
-        return max(
+        self._width = max(
             1, 
             row_widths_tot,
             self.node.width,
         )
+        return self._width
 
     def _row_height(self, y) -> int:
         row = self._coord2node[y]
@@ -190,16 +197,20 @@ class Grid:
 
     @property
     def height(self) -> int:
+        if self._height is not None:
+            return self._height
+
         row_heights = self._row_heights()
         row_heights_tot = 0
         if row_heights:
             row_heights_tot = sum(row_heights) + (len(row_heights) - 1)*self.space_row + self.padding_t + self.padding_b
 
-        return max(
+        self._height = max(
             1, 
             row_heights_tot,
             self.node.height,
         )
+        return self._height
 
     def sub_grid_from_coord(self, x, y) -> Grid:
         return self.sub_grid_from_node(self._coord2node[y][x])
@@ -226,6 +237,8 @@ class Grid:
         If x is not specified, add to the end of the row.
         Generate a sub-grid for the newly added node.
         '''
+        self._width, self._height = None, None
+
         assert node.in_region == self.node
 
         use_y = y if y is not None else max(
@@ -261,6 +274,8 @@ class Grid:
         ''' Remove node from all of grid's data structures.
         This means removing the sub-grid as well.
         '''
+        self._width, self._height = None, None
+
         coord = self._node2coord[node]
         x = coord[0]
         y = coord[1]

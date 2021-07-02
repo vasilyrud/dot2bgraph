@@ -126,6 +126,55 @@ def test_grid_dimension_empty(region_nodes):
     assert grid.width  == 1
     assert grid.height == 1
 
+def test_grid_dimension_gets_cached(region_nodes):
+    r1, _, _, _, _ = region_nodes
+    grid = Grid(r1)
+
+    assert grid._width  == None
+    assert grid.width  == 1
+    assert grid._width  == 1
+    assert grid.width  == 1
+
+    assert grid._height == None
+    assert grid.height == 1
+    assert grid._height == 1
+    assert grid.height == 1
+
+def test_grid_dimension_invalidated_by_add(region_nodes):
+    r1, n1, _, _, _ = region_nodes
+    grid = Grid(r1)
+
+    assert grid.width  == 1
+    assert grid.height == 1
+
+    grid.add_sub_grid(n1)
+
+    assert grid._width  == None
+    assert grid.width  == 3
+    assert grid._width  == 3
+
+    assert grid._height == None
+    assert grid.height == 3
+    assert grid._height == 3
+
+def test_grid_dimension_invalidated_by_del(region_nodes):
+    r1, n1, _, _, _ = region_nodes
+    grid = Grid(r1)
+    grid.add_sub_grid(n1)
+
+    assert grid.width  == 3
+    assert grid.height == 3
+
+    grid.del_sub_grid(n1)
+
+    assert grid._width  == None
+    assert grid.width  == 1
+    assert grid._width  == 1
+
+    assert grid._height == None
+    assert grid.height == 1
+    assert grid._height == 1
+
 def test_grid_dimension_single(region_nodes):
     r1, n1, _, _, _ = region_nodes
     grid = Grid(r1)

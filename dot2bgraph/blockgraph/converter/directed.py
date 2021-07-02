@@ -180,8 +180,7 @@ def _iter_sub_grid_offsets(
     depth: Optional[int] = 0,
 ) -> Iterable[Tuple[Grid,int,int,int]]:
 
-    # Caller is different from self
-    if inspect.stack()[1].function != inspect.stack()[0].function:
+    if depth == 0:
         yield grid, tot_offset_x, tot_offset_y, depth
 
     new_depth = depth + 1
