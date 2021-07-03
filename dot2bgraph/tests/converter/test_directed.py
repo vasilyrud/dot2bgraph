@@ -475,15 +475,15 @@ def test_create_locations_edges(grids):
     locs = _grids2locations(grid1)
     edge_ends = list(locs.iter_edge_ends())
 
-    assert edge_ends[2].edge_ends[0] == 1
-    assert edge_ends[3].edge_ends[0] == 2
-    assert edge_ends[4].edge_ends[0] == 7
-    assert edge_ends[5].edge_ends[0] == 8
+    assert edge_ends[2].edge_ends[0] == 0
+    assert edge_ends[3].edge_ends[0] == 1
+    assert edge_ends[4].edge_ends[0] == 6
+    assert edge_ends[5].edge_ends[0] == 7
 
-    assert edge_ends[0].edge_ends[0] == 3
-    assert edge_ends[1].edge_ends[0] == 4
-    assert edge_ends[6].edge_ends[0] == 5
-    assert edge_ends[7].edge_ends[0] == 6
+    assert edge_ends[0].edge_ends[0] == 2
+    assert edge_ends[1].edge_ends[0] == 3
+    assert edge_ends[6].edge_ends[0] == 4
+    assert edge_ends[7].edge_ends[0] == 5
 
 def test_get_color_order(colors):
     assert all(

@@ -18,6 +18,8 @@ from enum import Enum, auto
 
 from colour import Color
 
+from blockgraph.utils.color import bgraph_color
+
 class Locations:
     ''' Class for all locations of blocks and edges
     in the graph.
@@ -26,10 +28,23 @@ class Locations:
     using sub-object's constructors in order to keep 
     track of IDs from the Locations object.
     '''
-    def __init__(self):
-        self._blocks_id_counter = 1
-        self._blocks = {} # Use dict as Blocks can be deleted
-        self._edge_ends_id_counter = 1
+    def __init__(self, 
+        bg_color: str = '#ffffff', 
+        highlight_bg_color: str = '#ffffff', 
+        highlight_fg_color: str = '#000000',
+    ):
+        '''
+        :param bg_color: Background color of the graph
+        :param highlight_bg_color: Background color for graph highlights
+        :param highlight_fg_color: Foreground color for graph highlights
+        '''
+        self.bg_color = Color(bg_color)
+        self.highlight_bg_color = Color(highlight_bg_color)
+        self.highlight_fg_color = Color(highlight_fg_color)
+
+        self._blocks_id_counter = 0
+        self._blocks: Dict[int, _Block] = {} # Use dict as Blocks can be deleted
+        self._edge_ends_id_counter = 0
         self._edge_ends: Dict[int, _EdgeEnd] = {}
 
     def add_block(self, *args, **kwargs):
@@ -39,17 +54,18 @@ class Locations:
         self._blocks[new_block_id] = _Block(new_block_id, *args, **kwargs)
         return new_block_id
 
-    def add_edge_end(self, block_id: Optional[int] = None, *args, **kwargs):
+    def add_edge_end(self, *args, **kwargs):
         new_edge_end_id = self._edge_ends_id_counter
         self._edge_ends_id_counter += 1
 
         self._edge_ends[new_edge_end_id] = _EdgeEnd(new_edge_end_id, *args, **kwargs)
-        if block_id is not None:
-            self.assign_edge_to_block(new_edge_end_id, block_id)
+        if 'block_id' in kwargs:
+            self.assign_edge_to_block(new_edge_end_id, kwargs['block_id'])
 
         return new_edge_end_id
 
     def assign_edge_to_block(self, edge_end_id: int, block_id: int):
+        self.edge_end(edge_end_id).block_id = block_id
         self.block(block_id)._add_edge_end(self.edge_end(edge_end_id))
 
     def add_edge(self, from_edge_end_id: int, to_edge_end_id: int):
@@ -94,18 +110,25 @@ class Locations:
         return self._edge_ends[edge_end_id]
 
     def del_block(self, block_id: int):
+        for other_edge_end_id in self.block(block_id).edge_ends:
+            self.edge_end(other_edge_end_id).block_id = None
+
         del self._blocks[block_id]
     
     def del_edge_end(self, edge_end_id: int):
+        edge_end = self.edge_end(edge_end_id)
+
+        if edge_end.block_id is not None:
+            self.block(edge_end.block_id)._del_edge_end(edge_end)
+
+        for other_edge_end_id in edge_end.edge_ends:
+            self.edge_end(other_edge_end_id)._del_edge_end(edge_end)
+
         del self._edge_ends[edge_end_id]
 
-    def del_edges(self, from_edge_end_id: int, to_edge_end_id: int):
-        ''' Returns number of edges deleted.
-        '''
-        return self.edge_end(from_edge_end_id)._del_edge_ends(self.edge_end(to_edge_end_id))
-
-    def del_edge_end_from_block(self, edge_end_id: int, block_id: int):
-        self.block(block_id)._del_edge_end(self.edge_end(edge_end_id))
+    def del_edge(self, from_edge_end_id: int, to_edge_end_id: int):
+        self.edge_end(from_edge_end_id)._del_edge_end(self.edge_end(to_edge_end_id))
+        self.edge_end(to_edge_end_id)._del_edge_end(self.edge_end(from_edge_end_id))
 
     def _check_exists(self, items, item_id, item_str):
         if item_id not in items:
@@ -115,6 +138,9 @@ class Locations:
         obj = {
             'width':  self.width,
             'height': self.height,
+            'bgColor': bgraph_color(self.bg_color),
+            'highlightBgColor': bgraph_color(self.highlight_bg_color),
+            'highlightFgColor': bgraph_color(self.highlight_fg_color),
             'blocks': [
                 block.to_obj() 
                 for block in self._blocks.values()
@@ -156,15 +182,15 @@ class _Block:
         self.y = kwargs.get('y', 0)
         self.width  = kwargs.get('width',  1)
         self.height = kwargs.get('height', 1)
-        self.depth = kwargs.get('depth', 1)
+        self.depth = kwargs.get('depth', 0)
         self.color = Color(kwargs.get('color', '#cccccc'))
 
         self._edge_ends: Set[_EdgeEnd] = set()
 
         assert self.x >= 0
         assert self.y >= 0
-        assert self.width  >= 0
-        assert self.height >= 0
+        assert self.width  >= 1
+        assert self.height >= 1
 
     @property
     def coords(self):
@@ -186,21 +212,13 @@ class _Block:
             raise KeyError('{} does not contain {} with id={}.'.format(self, 'edge_end', edge_end.edge_end_id))
         self._edge_ends.remove(edge_end)
 
-    @property
-    def int_color(self):
-        return (
-            (int(self.color.red  *255) << 16) | 
-            (int(self.color.green*255) <<  8) | 
-            (int(self.color.blue *255) <<  0)
-        )
-
     def to_obj(self):
         return {
             'id': self.block_id,
             'x': self.x,'y': self.y,
             'width': self.width,'height': self.height,
             'depth': self.depth,
-            'color': self.int_color,
+            'color': bgraph_color(self.color),
             'edgeEnds': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
 
@@ -226,10 +244,10 @@ class _Block:
         )
 
 class Direction(Enum):
-    UP = auto()
-    DOWN = auto()
-    LEFT = auto()
-    RIGHT = auto()
+    UP = 1
+    RIGHT = 2
+    DOWN = 3
+    LEFT = 4
 
     def __str__(self):
         return self.name.lower()
@@ -246,10 +264,12 @@ class _EdgeEnd:
 
         self.x: int = kwargs.get('x', 0)
         self.y: int = kwargs.get('y', 0)
+        self.color = Color(kwargs.get('color', '#000000'))
         self.direction: Direction = Direction(kwargs.get('direction', Direction.UP))
         self.is_source: bool = kwargs.get('is_source', False)
+        self.block_id: Optional[int] = kwargs.get('block_id', None)
 
-        self._edge_ends: Dict[_EdgeEnd,int] = {}
+        self._edge_ends: Set[_EdgeEnd] = set()
 
         assert self.x >= 0
         assert self.y >= 0
@@ -259,31 +279,25 @@ class _EdgeEnd:
         return (self.x, self.y)
 
     @property
-    def edge_ends_iter(self):
-        for edge_end, count in self._edge_ends.items():
-            for _ in range(count):
-                yield edge_end.edge_end_id
-
-    @property
     def edge_ends(self):
-        return list(self.edge_ends_iter)
+        return [edge_end.edge_end_id for edge_end in self._edge_ends]
 
-    def _add_edge_end(self, to_edge_end: _EdgeEnd):
-        if to_edge_end not in self._edge_ends:
-            self._edge_ends[to_edge_end] = 0
-        self._edge_ends[to_edge_end] += 1
+    def _add_edge_end(self, edge_end: _EdgeEnd):
+        self._edge_ends.add(edge_end)
 
-    def _del_edge_ends(self, to_edge_end: _EdgeEnd):
-        if to_edge_end not in self._edge_ends:
-            raise KeyError('{} does not contain {} with id={}.'.format(self, 'edge_end', to_edge_end.edge_end_id))
-        return self._edge_ends.pop(to_edge_end)
+    def _del_edge_end(self, edge_end: _EdgeEnd):
+        if edge_end not in self._edge_ends:
+            raise KeyError('{} does not contain {} with id={}.'.format(self, 'edge_end', edge_end.edge_end_id))
+        self._edge_ends.remove(edge_end)
 
     def to_obj(self):
         return {
             'id': self.edge_end_id,
             'x': self.x,'y': self.y,
-            'direction': str(self.direction),
+            'color': bgraph_color(self.color),
+            'direction': self.direction.value,
             'isSource': self.is_source,
+            'block': self.block_id,
             'edgeEnds': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
 

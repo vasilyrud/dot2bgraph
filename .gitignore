@@ -9,5 +9,6 @@ __pycache__/
 .venv
 *.prof
 
+test.json
 notes
 experiments
