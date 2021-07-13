@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import cast, List, Dict, Set, Tuple, Optional, Iterable, NewType
+from typing import cast, List, Dict, Set, Tuple, Optional, Iterable, NewType, Iterator
 from pathlib import Path
 import glob
 import os
@@ -29,6 +29,7 @@ from blockgraph.locations import Locations, Direction
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
 EdgeToEdgeEnds = NewType('EdgeToEdgeEnds', Dict[Tuple[Node,Node], List[int]])
 NodeToBlockId  = NewType('NodeToBlockId',  Dict[Node, int])
+SubGridOffset  = NewType('SubGridOffset',  Tuple[Grid,int,int,int])
 
 def _sorted_subgraphs(agraph: AGraph) -> Iterable[AGraph]:
     ''' Normally, graphviz sorts subgraphs by time 
@@ -178,7 +179,7 @@ def _iter_sub_grid_offsets(
     tot_offset_x: Optional[int] = 0,
     tot_offset_y: Optional[int] = 0,
     depth: Optional[int] = 0,
-) -> Iterable[Tuple[Grid,int,int,int]]:
+) -> Iterator[SubGridOffset]:
 
     if depth == 0:
         yield grid, tot_offset_x, tot_offset_y, depth
@@ -206,13 +207,13 @@ def _iter_sub_grid_offsets(
 
 def _create_locations_blocks(
     locs: Locations,
-    sub_grid_offsets: Iterable[Tuple[Grid,int,int,int]],
+    sub_grid_offsets: Dict[Node,SubGridOffset],
 ) -> NodeToBlockId:
     node_to_block_id: NodeToBlockId = {}
 
-    max_depth = max(item[3] for item in sub_grid_offsets)
+    max_depth = max(item[3] for item in sub_grid_offsets.values())
 
-    for sub_grid, offset_x, offset_y, depth in sub_grid_offsets:
+    for sub_grid, offset_x, offset_y, depth in sub_grid_offsets.values():
         block_id = locs.add_block(
             x=offset_x,
             y=offset_y,
@@ -297,34 +298,46 @@ def _create_locations_ee_other_prev(
         direction=Direction.RIGHT
     )
 
+def _nodes_x_sorted(
+    nodes: Iterable[Node],
+    sub_grid_offsets: Dict[Node,SubGridOffset],
+) -> Iterable[Node]:
+    return sorted(nodes, key=lambda n: sub_grid_offsets[n][1])
+
+def _nodes_y_sorted(
+    nodes: Iterable[Node],
+    sub_grid_offsets: Dict[Node,SubGridOffset],
+) -> Iterable[Node]:
+    return sorted(nodes, key=lambda n: sub_grid_offsets[n][2])
+
 def _create_locations_edge_ends(
     locs: Locations,
-    sub_grid_offsets: Iterable[Tuple[Grid,int,int,int]],
+    sub_grid_offsets: Dict[Node,SubGridOffset],
     node_to_block_id: NodeToBlockId,
 ) -> Tuple[EdgeToEdgeEnds,EdgeToEdgeEnds]:
     ee_from: EdgeToEdgeEnds = cast(EdgeToEdgeEnds, {})
     ee_to:   EdgeToEdgeEnds = cast(EdgeToEdgeEnds, {})
 
-    for sub_grid, offset_x, offset_y, _ in sub_grid_offsets:
+    for sub_grid, offset_x, offset_y, _ in sub_grid_offsets.values():
         block_id = node_to_block_id[sub_grid.node]
 
         node_from = sub_grid.node
 
-        for i, node_to in enumerate(node_from.local_next):
+        for i, node_to in enumerate(_nodes_x_sorted(node_from.local_next, sub_grid_offsets)):
             edge_end_id = _create_locations_ee_local_next(sub_grid, locs, block_id, offset_x, offset_y, i)
             ee_from.setdefault((node_from, node_to), []).append(edge_end_id)
 
-        for i, node_to in enumerate(node_from.other_next):
+        for i, node_to in enumerate(_nodes_y_sorted(node_from.other_next, sub_grid_offsets)):
             edge_end_id = _create_locations_ee_other_next(sub_grid, locs, block_id, offset_x, offset_y, i)
             ee_from.setdefault((node_from, node_to), []).append(edge_end_id)
 
         node_to = sub_grid.node
 
-        for i, node_from in enumerate(node_to.local_prev):
+        for i, node_from in enumerate(_nodes_x_sorted(node_to.local_prev, sub_grid_offsets)):
             edge_end_id = _create_locations_ee_local_prev(sub_grid, locs, block_id, offset_x, offset_y, i)
             ee_to.setdefault((node_from, node_to), []).append(edge_end_id)
 
-        for i, node_from in enumerate(node_to.other_prev):
+        for i, node_from in enumerate(_nodes_y_sorted(node_to.other_prev, sub_grid_offsets)):
             edge_end_id = _create_locations_ee_other_prev(sub_grid, locs, block_id, offset_x, offset_y, i)
             ee_to.setdefault((node_from, node_to), []).append(edge_end_id)
     
@@ -365,7 +378,7 @@ def _grids2locations(
 
     with sp(type='spinner') as spinner:
         spinner.text = 'Creating bgraph offsets'
-        sub_grid_offsets = list(_iter_sub_grid_offsets(grid))
+        sub_grid_offsets = {grid.node: (grid,x,y,d) for grid, x, y, d in _iter_sub_grid_offsets(grid)}
 
         spinner.text = 'Creating bgraph blocks'
         node_to_block_id = _create_locations_blocks(locs, sub_grid_offsets)

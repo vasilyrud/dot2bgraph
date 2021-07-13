@@ -485,6 +485,45 @@ def test_create_locations_edges(grids):
     assert edge_ends[6].edge_ends[0] == 4
     assert edge_ends[7].edge_ends[0] == 5
 
+def test_edge_end_order():
+    r0 = Region('r0')
+    r1 = Region('r1', r0)
+    a1 = Node('a1', r1)
+    b1 = Node('b1', r1)
+    c1 = Node('c1', r1)
+    r2 = Region('r2', r0)
+    x2 = Node('x2', r2)
+    y2 = Node('y2', r2)
+
+    a1.add_edge(b1)
+    a1.add_edge(c1)
+    a1.add_edge(x2)
+    a1.add_edge(y2)
+
+    grid0 = Grid(r0, space_col=3, space_row=3)
+    grid1 = grid0.add_sub_grid(r1, x=0, y=0)
+    grid1.add_sub_grid(a1, x=0, y=0)
+    grid1.add_sub_grid(b1, x=2, y=1)
+    grid1.add_sub_grid(c1, x=1, y=1)
+
+    grid2 = grid0.add_sub_grid(r2, x=1, y=0)
+    grid2.add_sub_grid(x2, x=0, y=2)
+    grid2.add_sub_grid(y2, x=0, y=1)
+
+    locs = _grids2locations(grid0)
+
+    edge_ends = list(locs.iter_edge_ends())
+
+    assert edge_ends[0].coords == (3,4)
+    assert edge_ends[1].coords == (4,4)
+    assert edge_ends[2].coords == (5,2)
+    assert edge_ends[3].coords == (5,3)
+
+    assert edge_ends[0].edge_ends[0] == 4
+    assert edge_ends[1].edge_ends[0] == 5
+    assert edge_ends[2].edge_ends[0] == 6
+    assert edge_ends[3].edge_ends[0] == 7
+
 def test_get_color_order(colors):
     assert all(
         int(colors[i][1:3], 16) > int(colors[i+1][1:3], 16) 
