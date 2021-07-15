@@ -91,9 +91,11 @@ def _create_regions_nodes(
     anodes_to_nodes: ANodeToNode = cast(ANodeToNode, {}) if in_anodes_to_nodes is None else in_anodes_to_nodes
 
     cur_region = Region(agraph.name, parent_region)
+    if 'label' in agraph.graph_attr:
+        cur_region.label = agraph.graph_attr['label']
 
     for anode in _direct_nodes(agraph, set(anodes_to_nodes.keys())):
-        node = Node(anode, cur_region)
+        node = Node(anode, cur_region, label=anode.attr['label'])
         anodes_to_nodes[anode] = node
 
     for sub_agraph in _sorted_subgraphs(agraph):
@@ -213,7 +215,8 @@ def _create_locations_blocks(
 
     max_depth = max(item[3] for item in sub_grid_offsets.values())
 
-    for sub_grid, offset_x, offset_y, depth in sub_grid_offsets.values():
+    for node, offsets in sub_grid_offsets.items():
+        sub_grid, offset_x, offset_y, depth = offsets
         block_id = locs.add_block(
             x=offset_x,
             y=offset_y,
@@ -221,6 +224,7 @@ def _create_locations_blocks(
             height=sub_grid.height,
             depth=depth,
             color=_get_color(depth, max_depth),
+            label=node.label,
         )
         node_to_block_id[sub_grid.node] = block_id
 

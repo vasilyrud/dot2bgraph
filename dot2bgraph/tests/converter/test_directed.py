@@ -25,7 +25,7 @@ def grids():
     z1 = Node('z1', r1)
     r2 = Region('r2', r1)
     r3 = Region('r3', r2)
-    n3 = Node('n3', r3)
+    n3 = Node('n3', r3, label='node_label')
 
     a1.add_edge(n3)
     a1.add_edge(n3)
@@ -89,6 +89,25 @@ def test_anodes_to_nodes():
     assert anodes_to_nodes[agraph.get_node('a')] in nodes_A.values()
     assert anodes_to_nodes[agraph.get_node('b')] in nodes_A.values()
     assert nodes_A['a'] != nodes_A['b']
+
+def test_labels():
+    dot = '''
+    digraph X {
+        label="label_X";
+        subgraph cluster_A {
+            label="label_A";
+            a [label="label_a"];
+        }
+    }
+    '''
+    agraph = AGraph(string=dot)
+    base_region, _ = _create_regions_nodes(agraph)
+
+    assert base_region.label == 'label_X'
+    region_A = base_region.nodes_map['cluster_A']
+    assert region_A.label == 'label_A'
+    node_a = region_A.nodes_map['a']
+    assert node_a.label == 'label_a'
 
 def test_direct_nodes():
     dot = '''
@@ -441,6 +460,7 @@ def test_create_locations_blocks(grids):
     assert blocks[-1].x == 3
     assert blocks[-1].y == 3
     assert blocks[-1].depth == 3
+    assert blocks[-1].label == 'node_label'
 
 def test_create_locations_edge_ends_coords(grids):
     grid1, grid1_a1, grid1_z1, grid2, grid3, grid3_n3 = grids

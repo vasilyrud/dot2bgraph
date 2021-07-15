@@ -9,12 +9,12 @@ from blockgraph.locations import Locations, _Block, _EdgeEnd, Direction
 def _make_blocks(locs: Locations):
     b0 = locs.add_block()
     b1 = locs.add_block(x=5)
-    b2 = locs.add_block(y=8)
+    b2 = locs.add_block(y=8, label='block_label')
     return b0, b1, b2
 
 def _make_edge_ends(locs: Locations):
     e0 = locs.add_edge_end(x=5, y=1, direction=Direction.DOWN)
-    e1 = locs.add_edge_end(x=1, y=8, direction=Direction.RIGHT)
+    e1 = locs.add_edge_end(x=1, y=8, direction=Direction.RIGHT, label='ee_label')
     return e0, e1
 
 def _make_directions():
@@ -93,6 +93,12 @@ def test_add_block_invalid():
     with pytest.raises(AssertionError):
         locs.add_block(width=-1)
 
+def test_add_block_label():
+    locs = Locations()
+    b0, _, b2 = _make_blocks(locs)
+    assert locs.block(b0).label is None
+    assert locs.block(b2).label == 'block_label'
+
 def test_block_ids():
     locs = Locations()
     b0, b1, b2 = _make_blocks(locs)
@@ -162,6 +168,12 @@ def test_del_edge_end_with_block():
     assert e0 not in locs.block(b0).edge_ends
     with pytest.raises(KeyError):
         locs.block(b0)._del_edge_end(locs.edge_end(e0))
+
+def test_add_edge_end_label():
+    locs = Locations()
+    e0, e1 = _make_edge_ends(locs)
+    assert locs.edge_end(e0).label is None
+    assert locs.edge_end(e1).label == 'ee_label'
 
 def test_del_edge_end_with_edge():
     locs = Locations()
@@ -275,6 +287,7 @@ def test_locations_to_obj():
                 'depth': 0,
                 'color': 13421772,
                 'edgeEnds': [1],
+                'label': 'block_label',
             },
         ],
         'edgeEnds': [
@@ -295,6 +308,7 @@ def test_locations_to_obj():
                 'isSource': False,
                 'block': 2,
                 'edgeEnds': [0],
+                'label': 'ee_label',
             },
         ],
     }

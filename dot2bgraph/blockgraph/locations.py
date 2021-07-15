@@ -184,6 +184,7 @@ class _Block:
         self.height = kwargs.get('height', 1)
         self.depth = kwargs.get('depth', 0)
         self.color = Color(kwargs.get('color', '#cccccc'))
+        self.label = kwargs.get('label', None)
 
         self._edge_ends: Set[_EdgeEnd] = set()
 
@@ -213,7 +214,7 @@ class _Block:
         self._edge_ends.remove(edge_end)
 
     def to_obj(self):
-        return {
+        obj = {
             'id': self.block_id,
             'x': self.x,'y': self.y,
             'width': self.width,'height': self.height,
@@ -221,6 +222,11 @@ class _Block:
             'color': bgraph_color(self.color),
             'edgeEnds': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
+
+        if self.label is not None:
+            obj['label'] = self.label
+
+        return obj
 
     def __eq__(self, other):
         return self.block_id == other.block_id
@@ -268,6 +274,7 @@ class _EdgeEnd:
         self.direction: Direction = Direction(kwargs.get('direction', Direction.UP))
         self.is_source: bool = kwargs.get('is_source', False)
         self.block_id: Optional[int] = kwargs.get('block_id', None)
+        self.label = kwargs.get('label', None)
 
         self._edge_ends: Set[_EdgeEnd] = set()
 
@@ -291,7 +298,7 @@ class _EdgeEnd:
         self._edge_ends.remove(edge_end)
 
     def to_obj(self):
-        return {
+        obj = {
             'id': self.edge_end_id,
             'x': self.x,'y': self.y,
             'color': bgraph_color(self.color),
@@ -300,6 +307,11 @@ class _EdgeEnd:
             'block': self.block_id,
             'edgeEnds': [edge_end.edge_end_id for edge_end in self._edge_ends],
         }
+
+        if self.label is not None:
+            obj['label'] = self.label
+
+        return obj
 
     def __eq__(self, other):
         return self.edge_end_id == other.edge_end_id

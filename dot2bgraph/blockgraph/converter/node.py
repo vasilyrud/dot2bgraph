@@ -23,6 +23,7 @@ class Node:
         *args, **kwargs
     ):
         self.name = name
+        self.label = kwargs.get('label', None)
 
         self._in_region: Optional[ref[Region]] = None
         self.in_region = in_region
@@ -177,7 +178,7 @@ class Region(Node):
         in_region: Optional[Region] = None,
         *args, **kwargs
     ):
-        super().__init__(name, in_region)
+        super().__init__(name, in_region, *args, **kwargs)
         self.is_region = True
         self.nodes_map: Dict[str, Node] = {}
 
