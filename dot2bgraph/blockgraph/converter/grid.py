@@ -389,8 +389,8 @@ def _classify_edge(
     else:
         edge_type = EdgeType.CROSS
 
-    edge_types[edge] = edge_type
-    return edge_type
+    if edge not in edge_types:
+        edge_types[edge] = edge_type
 
 def _update_depth(
     edge,
@@ -401,11 +401,12 @@ def _update_depth(
     _, next_node = edge
 
     if edge in edge_types and edge_types[edge] == EdgeType.BACK:
-        return
-    if next_node in node_depths and node_depths[next_node] > depth:
-        return
+        return False
+    if next_node in node_depths and node_depths[next_node] >= depth:
+        return False
 
     node_depths[next_node] = depth
+    return True
 
 def _get_edge_info_dfs_recurse(
     prev_edge,
@@ -428,9 +429,11 @@ def _get_edge_info_dfs_recurse(
         next_edge = (cur_node,next_node)
 
         _classify_edge(next_edge, edge_types, seen)
-        _update_depth(next_edge, edge_types, node_depths, depth)
+        updated_depth = _update_depth(next_edge, edge_types, node_depths, depth)
 
-        if edge_types[next_edge] == EdgeType.NORMAL:
+        if (edge_types[next_edge] == EdgeType.NORMAL or
+            edge_types[next_edge] != EdgeType.BACK and updated_depth
+        ):
             _get_edge_info_dfs_recurse(
                 next_edge,
                 edge_types,

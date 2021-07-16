@@ -855,6 +855,62 @@ def test_get_edge_info_inner_loop(region):
     assert edge_types[(b,c)] == EdgeType.NORMAL
     assert edge_types[(c,b)] == EdgeType.BACK
 
+def test_get_edge_info_update_depth(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    d = Node('d', region)
+    e = Node('e', region)
+    a.add_edge(b)
+    a.add_edge(c)
+    a.add_edge(d)
+    c.add_edge(e)
+    d.add_edge(b)
+    b.add_edge(e)
+
+    _, node_depths = _get_edge_info(region)
+    assert node_depths[a] == 0
+    assert node_depths[b] == 2
+    assert node_depths[c] == 1
+    assert node_depths[d] == 1
+    assert node_depths[e] == 3
+
+def test_get_edge_info_update_depth_with_loop(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    d = Node('d', region)
+    e = Node('e', region)
+    f = Node('f', region)
+    g = Node('g', region)
+    h = Node('h', region)
+    i = Node('i', region)
+    j = Node('j', region)
+    a.add_edge(b)
+    a.add_edge(c)
+    a.add_edge(d)
+    c.add_edge(e)
+    d.add_edge(b)
+    b.add_edge(f)
+    f.add_edge(g)
+    f.add_edge(h)
+    g.add_edge(h)
+    h.add_edge(i)
+    h.add_edge(j)
+    i.add_edge(f)
+
+    _, node_depths = _get_edge_info(region)
+    assert node_depths[a] == 0
+    assert node_depths[b] == 2
+    assert node_depths[c] == 1
+    assert node_depths[d] == 1
+    assert node_depths[e] == 2
+    assert node_depths[f] == 3
+    assert node_depths[g] == 4
+    assert node_depths[h] == 5
+    assert node_depths[i] == 6
+    assert node_depths[j] == 6
+
 def test_sub_grid_from_node(region):
     a = Node('a', region)
     r2 = Region('r2', region)
