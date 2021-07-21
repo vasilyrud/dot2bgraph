@@ -91,11 +91,20 @@ def _create_regions_nodes(
     anodes_to_nodes: ANodeToNode = cast(ANodeToNode, {}) if in_anodes_to_nodes is None else in_anodes_to_nodes
 
     cur_region = Region(agraph.name, parent_region)
+
     if 'label' in agraph.graph_attr:
         cur_region.label = agraph.graph_attr['label']
 
     for anode in _direct_nodes(agraph, set(anodes_to_nodes.keys())):
-        node = Node(anode, cur_region, label=anode.attr['label'])
+        node = Node(anode, cur_region)
+
+        if 'label' in anode.attr and anode.attr['label'] is not None:
+            # "\N" in graphviz indicates "use node name"
+            if anode.attr['label'] == '\\N':
+                node.label = anode.name
+            else:
+                node.label = anode.attr['label']
+
         anodes_to_nodes[anode] = node
 
     for sub_agraph in _sorted_subgraphs(agraph):
@@ -121,7 +130,11 @@ def _populate_subgraph(
 
     for from_node in _direct_nodes(from_subgraph, seen_nodes):
         anode_name = f'{node_namespace}:{from_node}'
-        to_subgraph.add_node(anode_name)
+
+        if 'label' in from_node.attr and from_node.attr['label'] is not None:
+            to_subgraph.add_node(anode_name, label=from_node.attr['label'])
+        else:
+            to_subgraph.add_node(anode_name)
 
         seen_nodes.add(anode_name)
 
@@ -134,6 +147,9 @@ def _populate_subgraph(
     for sub_from_subgraph in _sorted_subgraphs(from_subgraph):
         subgraph_name = f'{node_namespace}:{sub_from_subgraph.name}'
         sub_to_subgraph = to_subgraph.add_subgraph(name=subgraph_name)
+
+        if 'label' in sub_from_subgraph.graph_attr:
+            sub_to_subgraph.graph_attr['label'] = sub_from_subgraph.graph_attr['label']
 
         _populate_subgraph(
             sub_to_subgraph,
@@ -415,7 +431,7 @@ def _agraph2locations(agraph: AGraph) -> Locations:
 
 def dot2locations(dotfile: Path) -> Locations:
     assert dotfile.is_file()
-    agraph = AGraph(string=dotfile.read_text())
+    agraph = AGraph(string=dotfile.read_text(), label=dotfile.name)
     return _agraph2locations(agraph)
 
 def _dot_files_in_dir(dotdir):
@@ -425,9 +441,9 @@ def _recursive_agraph(dotdir: Path) -> AGraph:
     assert dotdir.is_dir()
 
     root_path = dotdir.expanduser()
-    root_folder = os.path.split(root_path)[-1]
+    root_folder = root_path.name
 
-    agraph = AGraph(strict=False, directed=True, name=root_folder)
+    agraph = AGraph(strict=False, directed=True, name=root_folder, label=root_folder)
 
     for found_file in sp(type='bar',
         items=_dot_files_in_dir(root_path),
@@ -441,7 +457,12 @@ def _recursive_agraph(dotdir: Path) -> AGraph:
         prev_folder = root_folder
         for folder in split_path:
             cur_folder = os.path.join(prev_folder, folder)
-            prev_subgraph = prev_subgraph.add_subgraph(name=cur_folder)
+
+            cur_subgraph = prev_subgraph.get_subgraph(cur_folder)
+            if cur_subgraph is None:
+                cur_subgraph = prev_subgraph.add_subgraph(name=cur_folder, label=cur_folder)
+
+            prev_subgraph = cur_subgraph
             prev_folder = cur_folder
 
         from_agraph = AGraph(string=dotfile.read_text())
