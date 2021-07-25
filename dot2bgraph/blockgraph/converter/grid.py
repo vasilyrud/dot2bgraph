@@ -27,7 +27,7 @@ class EdgeType(Enum):
     BACK = auto()
 
 EdgeTypes = NewType('EdgeTypes', Dict[Tuple[Node,Node],EdgeType])
-NodeDepths = NewType('NodeDepths', 'OrderedDict[Node, int]')
+NodeDepths = NewType('NodeDepths', Dict[Node,int])
 
 class Grid:
     ''' An ordering of nodes per-region on a
@@ -392,26 +392,9 @@ def _classify_edge(
     if edge not in edge_types:
         edge_types[edge] = edge_type
 
-def _update_depth(
-    edge,
-    edge_types,
-    node_depths,
-    depth,
-):
-    _, next_node = edge
-
-    if edge in edge_types and edge_types[edge] == EdgeType.BACK:
-        return False
-    if next_node in node_depths and node_depths[next_node] >= depth:
-        return False
-
-    node_depths[next_node] = depth
-    return True
-
-def _get_edge_info_dfs_recurse(
+def _get_edge_types_recurse(
     prev_edge,
     edge_types,
-    node_depths,
     seen,
     depth,
 ):
@@ -429,15 +412,11 @@ def _get_edge_info_dfs_recurse(
         next_edge = (cur_node,next_node)
 
         _classify_edge(next_edge, edge_types, seen)
-        updated_depth = _update_depth(next_edge, edge_types, node_depths, depth)
 
-        if (edge_types[next_edge] == EdgeType.NORMAL or
-            edge_types[next_edge] != EdgeType.BACK and updated_depth
-        ):
-            _get_edge_info_dfs_recurse(
+        if edge_types[next_edge] == EdgeType.NORMAL:
+            _get_edge_types_recurse(
                 next_edge,
                 edge_types,
-                node_depths,
                 seen,
                 depth+1,
             )
@@ -445,43 +424,82 @@ def _get_edge_info_dfs_recurse(
     seen.time += 1
     seen.finish[cur_node] = seen.time
 
-def _get_edge_info_dfs(
+def _get_edge_types(
     region: Region,
-    edge_types: EdgeTypes,
-    node_depths: NodeDepths,
 ):
-    ''' Call DFS to edge classification starting only
+    ''' Clasify edges in the graph.
+
+    Call DFS to edge classification starting only
     at the source nodes.
+
     Assumes that source nodes will never be traversed
     to before they are used as sources.
     '''
+    edge_types: EdgeTypes = {}
     seen = _SeenNodes()
 
     for source in _sources(region):
         assert source not in seen.nodes, 'Source node was used that does not allow source-driven DFS edge classification.'
         next_edge = (None, source)
 
-        _update_depth(next_edge, edge_types, node_depths, Grid.MIN_INDEX)
-        _get_edge_info_dfs_recurse(
+        _get_edge_types_recurse(
             next_edge, 
             edge_types, 
-            node_depths, 
             seen,
             Grid.MIN_INDEX+1,
         )
 
-def _get_edge_info(
+    return edge_types
+
+def _num_local_prev_forward_edges(
+    node: Node,
+    edge_types: EdgeTypes,
+):
+    ''' Return the number of local prev edges
+    that are not back edges. '''
+
+    return sum(1 for prev_node in node.local_prev 
+        if edge_types[(prev_node,node)] != EdgeType.BACK
+    )
+
+def _get_node_depths(
     region: Region,
-) -> Tuple[EdgeTypes,NodeDepths]:
-    ''' Clasify edges in the graph based
-    on their EdgeType and nodes based on
-    their depth in the graph.
-    '''
-    edge_types: EdgeTypes = {}
-    node_depths: NodeDepths = OrderedDict()
+    edge_types: EdgeTypes,
+) -> NodeDepths:
+    node_depths: NodeDepths = {}
+    seen_in_edges = {}
 
-    _get_edge_info_dfs(region, edge_types, node_depths)
+    q = deque()
 
+    for source in _sources(region):
+        node_depths[source] = 0
+        seen_in_edges[source] = set()
+
+        q.append((source, 0))
+
+    while q:
+        cur_node, cur_depth = q.popleft()
+
+        for next_node in cur_node.local_next:
+            next_edge = (cur_node,next_node)
+
+            node_depths.setdefault(next_node, 0)
+            if edge_types[next_edge] != EdgeType.BACK:
+                node_depths[next_node] = max(node_depths[next_node], cur_depth+1)
+
+            next_seen = seen_in_edges.setdefault(next_node, set())
+            next_seen.add(next_edge)
+
+            if (len(next_seen) == 
+                _num_local_prev_forward_edges(next_node, edge_types)
+            ):
+                q.append((next_node, cur_depth+1))
+
+    return node_depths
+
+def _get_edge_info(node: Node) -> Tuple[EdgeTypes,NodeDepths]:
+    edge_types  = _get_edge_types(node)
+    node_depths = _get_node_depths(node, edge_types)
     return edge_types, node_depths
 
 def place_on_grid(
@@ -490,7 +508,8 @@ def place_on_grid(
 ) -> Grid:
     grid = in_grid if in_grid is not None else Grid(node)
 
-    if not node.is_region: return
+    if not node.is_region:
+        return
 
     _, node_depths = _get_edge_info(node)
 
