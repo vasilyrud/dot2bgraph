@@ -396,7 +396,6 @@ def _get_edge_types_recurse(
     prev_edge,
     edge_types,
     seen,
-    depth,
 ):
     ''' Helper function to classify all nodes in the
     graph by traversing in DFS order.
@@ -418,7 +417,6 @@ def _get_edge_types_recurse(
                 next_edge,
                 edge_types,
                 seen,
-                depth+1,
             )
 
     seen.time += 1
@@ -446,7 +444,6 @@ def _get_edge_types(
             next_edge, 
             edge_types, 
             seen,
-            Grid.MIN_INDEX+1,
         )
 
     return edge_types
@@ -472,10 +469,10 @@ def _get_node_depths(
     q = deque()
 
     for source in _sources(region):
-        node_depths[source] = 0
+        node_depths[source] = Grid.MIN_INDEX
         seen_in_edges[source] = set()
 
-        q.append((source, 0))
+        q.append((source, Grid.MIN_INDEX))
 
     while q:
         cur_node, cur_depth = q.popleft()
