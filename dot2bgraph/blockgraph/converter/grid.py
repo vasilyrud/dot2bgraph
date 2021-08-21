@@ -14,9 +14,10 @@
 
 from __future__ import annotations
 from typing import Dict, Tuple, Set, NewType, Iterable, Optional
-from collections import deque, OrderedDict
+from collections import deque
 from enum import Enum, auto
 from itertools import chain
+from abc import ABC, abstractmethod
 
 from blockgraph.converter.node import Node, Region
 
@@ -29,7 +30,67 @@ class EdgeType(Enum):
 EdgeTypes = NewType('EdgeTypes', Dict[Tuple[Node,Node],EdgeType])
 NodeDepths = NewType('NodeDepths', Dict[Node,int])
 
-class Grid:
+class Grid(ABC):
+    ''' Base class for grid interface. '''
+
+    MIN_INDEX=0
+
+    def __init__(self,
+        node: Node,
+        padding_outer: int,
+        padding_inner: int,
+    ):
+        ''' 
+        :param node: Node from which this Grid is made
+        :param padding_outer: Space to sides of grid
+        :param padding_inner: Space between sub-grids
+        '''
+        self.node = node
+        self.padding_outer = padding_outer
+        self.padding_inner = padding_inner
+
+    @abstractmethod
+    def iter_offsets(self) -> Iterable[Tuple[int,int,Grid]]:
+        pass
+
+    @property
+    @abstractmethod
+    def sub_grids(self) -> Iterable[Grid]:
+        pass
+
+    @property
+    @abstractmethod
+    def sub_nodes(self) -> Iterable[Node]:
+        pass
+
+    @property
+    @abstractmethod
+    def is_empty(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def width(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def height(self) -> int:
+        pass
+
+    @abstractmethod
+    def add_sub_grid(self, 
+        node: Node, 
+        x: Optional[int] = None, 
+        y: Optional[int] = None,
+    ) -> Grid:
+        pass
+
+    @abstractmethod
+    def del_sub_grid(self, node: Node):
+        pass
+
+class GridRows(Grid):
     ''' An ordering of nodes per-region on a
     pseudo-grid, e.g.:
         + - - - - - - - - + - - +
@@ -45,38 +106,15 @@ class Grid:
         + - - - + - - - +
     '''
 
-    MIN_INDEX=0
-
     def __init__(self, 
         node: Node,
-        padding_l: Optional[int] = 1,
-        padding_r: Optional[int] = 1,
-        padding_t: Optional[int] = 1,
-        padding_b: Optional[int] = 1,
-        space_col: Optional[int] = 1,
-        space_row: Optional[int] = 1,
+        padding_outer: Optional[int] = 1,
+        padding_inner: Optional[int] = 1,
     ):
         ''' In a hierarchy of grids, only the top-level Grid
         has to be explicitly created.
-
-        :param node: Node from which this Grid is made
-
-        :param padding_l: Space to left   side of grid
-        :param padding_r: Space to right  side of grid
-        :param padding_t: Space to top    side of grid
-        :param padding_b: Space to bottom side of grid
-
-        :param space_col: Space between grid columns
-        :param space_row: Space between grid rows
         '''
-        self.node = node
-
-        self.padding_l = padding_l
-        self.padding_r = padding_r
-        self.padding_t = padding_t
-        self.padding_b = padding_b
-        self.space_col = space_col
-        self.space_row = space_row
+        super().__init__(node, padding_outer, padding_inner)
 
         self._node2coord: Dict[Node,Tuple[int,int]] = {}
         self._node2grid:  Dict[Node,Grid] = {}
@@ -85,53 +123,60 @@ class Grid:
         self._width:  Optional[int] = None
         self._height: Optional[int] = None
 
-    def iter_y(self) -> Iterable[int]:
+    def _iter_y(self) -> Iterable[int]:
         return sorted(self._coord2node)
 
-    def iter_x(self, y) -> Iterable[int]:
+    def _iter_x(self, y) -> Iterable[int]:
         return sorted(self._coord2node[y])
 
     def _nodes_iter(self) -> Iterable[Node]:
         ''' Iterate through sub-nodes by their
         y and then by their x coordinates.
         '''
-        for y in self.iter_y():
-            for x in self.iter_x(y):
+        for y in self._iter_y():
+            for x in self._iter_x(y):
                 yield self._coord2node[y][x]
 
-    def iter_offset_y(self) -> Iterable[Tuple[int,int]]:
+    def _iter_offset_y(self) -> Iterable[Tuple[int,int]]:
         offset = 0
 
         # y does not necessarily start at 0
-        for i, y in enumerate(self.iter_y()):
+        for i, y in enumerate(self._iter_y()):
             if i == 0:
-                offset += self.padding_t
+                offset += self.padding_outer
             else:
-                offset += self.space_row
+                offset += self.padding_inner
 
             yield offset, y
 
             offset += self._row_height(y)
 
-    def iter_offset_x(self, y) -> Iterable[Tuple[int,int]]:
+    def _iter_offset_x(self, y) -> Iterable[Tuple[int,int]]:
         offset = 0
 
         # x does not necessarily start at 0
-        for i, x in enumerate(self.iter_x(y)):
+        for i, x in enumerate(self._iter_x(y)):
             if i == 0:
-                offset += self.row_offset(y) + self.padding_l
+                offset += self._row_offset(y) + self.padding_outer
             else:
-                offset += self.space_col
+                offset += self.padding_inner
 
             yield offset, x
 
-            offset += self.sub_grid_from_coord(x, y).width
+            offset += self._sub_grid_from_coord(x, y).width
 
-    def row_offset(self, y):
-        return (self.width - self.row_width(y)) // 2
+    def iter_offsets(self) -> Iterable[Tuple[int,int,Grid]]:
+        for offset_y, y in self._iter_offset_y():
+            for offset_x, x in self._iter_offset_x(y):
 
-    def row_offset_end(self, y):
-        return self.width - self.row_width(y) - self.row_offset(y)
+                sub_grid = self._sub_grid_from_coord(x, y)
+                yield offset_x, offset_y, sub_grid
+
+    def _row_offset(self, y):
+        return (self.width - self._row_width_total(y)) // 2
+
+    def _row_offset_end(self, y):
+        return self.width - self._row_width_total(y) - self._row_offset(y)
 
     @property
     def sub_grids(self) -> Iterable[Grid]:
@@ -149,20 +194,20 @@ class Grid:
             return True
         return False
 
-    def row_width(self, y) -> int:
+    def _row_width_total(self, y) -> int:
         ''' Get width of a single row, including
         the padding on the left and right.
         '''
-        return self._row_width(y) + self.padding_l + self.padding_r
+        return self._row_width(y) + self.padding_outer * 2
 
     def _row_width(self, y) -> int:
         row = self._coord2node[y]
         return (
             sum(
-                self._node2grid[node].width + self.space_col
+                self._node2grid[node].width
                 for node in row.values()
             )
-            - self.space_col
+            + self.padding_inner * (len(row) - 1)
         )
 
     def _row_widths(self) -> int:
@@ -176,7 +221,8 @@ class Grid:
         row_widths = self._row_widths()
         row_widths_tot = 0
         if row_widths:
-            row_widths_tot = max(row_widths) + self.padding_l + self.padding_r
+            row_widths_tot = max(row_widths)
+            row_widths_tot += self.padding_outer * 2
 
         self._width = max(
             1, 
@@ -203,7 +249,9 @@ class Grid:
         row_heights = self._row_heights()
         row_heights_tot = 0
         if row_heights:
-            row_heights_tot = sum(row_heights) + (len(row_heights) - 1)*self.space_row + self.padding_t + self.padding_b
+            row_heights_tot = sum(row_heights)
+            row_heights_tot += self.padding_inner * (len(row_heights) - 1)
+            row_heights_tot += self.padding_outer * 2
 
         self._height = max(
             1, 
@@ -212,19 +260,19 @@ class Grid:
         )
         return self._height
 
-    def sub_grid_from_coord(self, x, y) -> Grid:
-        return self.sub_grid_from_node(self._coord2node[y][x])
+    def _sub_grid_from_coord(self, x, y) -> Grid:
+        return self._sub_grid_from_node(self._coord2node[y][x])
 
-    def sub_grid_from_node(self, node: Node) -> Grid:
+    def _sub_grid_from_node(self, node: Node) -> Grid:
         return self._node2grid[node]
 
-    def has_node(self, node: Node) -> bool:
+    def _has_node(self, node: Node) -> bool:
         return node in self._node2coord
 
-    def get_x(self, node: Node) -> int:
+    def _get_x(self, node: Node) -> int:
         return self._node2coord[node][0]
 
-    def get_y(self, node: Node) -> int:
+    def _get_y(self, node: Node) -> int:
         return self._node2coord[node][1]
 
     def add_sub_grid(self, 
@@ -255,13 +303,10 @@ class Grid:
 
         assert node not in self._node2coord, 'Node {} already placed.'.format(node)
         self._node2coord[node] = (use_x,use_y)
-        new_grid = Grid(node,
-            padding_l=self.padding_l,
-            padding_r=self.padding_r,
-            padding_t=self.padding_t,
-            padding_b=self.padding_b,
-            space_col=self.space_col,
-            space_row=self.space_row,
+        new_grid = GridRows(
+            node,
+            self.padding_outer,
+            self.padding_inner,
         )
         self._node2grid[node] = new_grid
 
@@ -292,10 +337,10 @@ class Grid:
         string += self.__repr__()
 
         string += '['
-        for i, y in enumerate(self.iter_y()):
+        for i, y in enumerate(self._iter_y()):
             if i != 0: string += ','
             string += '['
-            for j, x in enumerate(self.iter_x(y)):
+            for j, x in enumerate(self._iter_x(y)):
                 if j != 0: string += ','
                 string += repr(self._coord2node[y][x])
             string += ']'
@@ -501,10 +546,8 @@ def _get_edge_info(node: Node) -> Tuple[EdgeTypes,NodeDepths]:
 
 def place_on_grid(
     node: Node,
-    in_grid: Optional[Grid] = None,
+    grid: Grid,
 ) -> Grid:
-    grid = in_grid if in_grid is not None else Grid(node)
-
     if not node.is_region:
         return
 

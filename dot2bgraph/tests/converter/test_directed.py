@@ -11,7 +11,7 @@ from blockgraph.converter.directed import (
     _recursive_agraph, dots2locations,
 )
 from blockgraph.converter.node import Node, Region
-from blockgraph.converter.grid import Grid
+from blockgraph.converter.grid import GridRows
 from blockgraph.locations import Direction
 
 # Prevent spinners from printing during tests
@@ -32,7 +32,7 @@ def grids():
     a1.add_edge(z1)
     a1.add_edge(z1)
 
-    grid1 = Grid(r1)
+    grid1 = GridRows(r1)
     grid1_a1 = grid1.add_sub_grid(a1, x=1, y=1)
     grid1_z1 = grid1.add_sub_grid(z1, x=0, y=1)
 
@@ -520,7 +520,7 @@ def test_edge_end_order():
     a1.add_edge(x2)
     a1.add_edge(y2)
 
-    grid0 = Grid(r0, space_col=3, space_row=3)
+    grid0 = GridRows(r0, padding_inner=3)
     grid1 = grid0.add_sub_grid(r1, x=0, y=0)
     grid1.add_sub_grid(a1, x=0, y=0)
     grid1.add_sub_grid(b1, x=2, y=1)

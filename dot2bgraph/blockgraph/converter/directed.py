@@ -23,7 +23,7 @@ from colour import Color
 
 from blockgraph.utils.spinner import sp, SPINNER_OK
 from blockgraph.converter.node import Node, Region
-from blockgraph.converter.grid import Grid, place_on_grid
+from blockgraph.converter.grid import GridRows, Grid, place_on_grid
 from blockgraph.locations import Locations, Direction
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
@@ -205,15 +205,12 @@ def _iter_sub_grid_offsets(
     new_depth = depth + 1
     sub_grids = []
 
-    for offset_y, y in grid.iter_offset_y():
-        for offset_x, x in grid.iter_offset_x(y):
-            sub_grid = grid.sub_grid_from_coord(x, y)
+    for offset_x, offset_y, sub_grid in grid.iter_offsets():
+        new_offset_x = tot_offset_x + offset_x
+        new_offset_y = tot_offset_y + offset_y
 
-            new_offset_x = tot_offset_x + offset_x
-            new_offset_y = tot_offset_y + offset_y
-
-            yield sub_grid, new_offset_x, new_offset_y, new_depth
-            sub_grids.append((sub_grid, new_offset_x, new_offset_y))
+        yield sub_grid, new_offset_x, new_offset_y, new_depth
+        sub_grids.append((sub_grid, new_offset_x, new_offset_y))
 
     for sub_grid, new_offset_x, new_offset_y in sub_grids:
         yield from _iter_sub_grid_offsets(
@@ -378,13 +375,9 @@ def _create_locations_edges(
             locs.add_edge(edge_end_id_from, edge_end_id_to)
 
 def _regions2grids(base_region: Region) -> Grid:
-    grid = Grid(base_region,
-        padding_l=2,
-        padding_r=2,
-        padding_t=2,
-        padding_b=2,
-        space_col=3,
-        space_row=3,
+    grid = GridRows(base_region,
+        padding_outer=2,
+        padding_inner=3,
     )
     return place_on_grid(base_region, grid)
 
