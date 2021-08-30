@@ -1,8 +1,10 @@
 import pytest
 
 from blockgraph.converter.grid import (
-    GridRows, EdgeType,
+    GridRows, GridPack, EdgeType,
     _sources, _get_edge_info,
+    _independent_sub_grids,
+    _make_pack_grid, _make_rows_grid,
     place_on_grid
 )
 from blockgraph.converter.node import Node, Region
@@ -46,89 +48,91 @@ def offset_based_width(grid):
     ''' Test offset numbers by re-computing width
     based on offset iterator.
     '''
-    rows_y = list(grid._iter_y())
-    if not rows_y:
+    offsets = list(grid.iter_offsets())
+    if not offsets:
         return grid.node.width
-    y = rows_y[0] # y of first row
-    offset_x, x = list(grid._iter_offset_x(y))[-1] # offset of last col in first row
-    return offset_x + grid._sub_grid_from_coord(x, y).width + grid.padding_outer + grid._row_offset_end(y)
+    return max(
+        max(x + g.width + g.padding_outer for x, _, g in offsets),
+        grid.node.width,
+    )
 
 def offset_based_height(grid):
     ''' Test offset numbers by re-computing height
     based on offset iterator.
     '''
-    rows_y = list(grid._iter_y())
-    if not rows_y:
+    offsets = list(grid.iter_offsets())
+    if not offsets:
         return grid.node.height
-    offset_y, y = list(grid._iter_offset_y())[-1] # offset of last row
-    return max(offset_y + grid._row_height(y) + grid.padding_outer, grid.node.height)
+    return max(
+        max(y + g.height + g.padding_outer for _, y, g in offsets),
+        grid.node.height,
+    )
+
+def _add_sub_grid(grid, node, x = None, y = None):
+    sub_grid = GridRows(node, grid.padding_outer, grid.padding_inner)
+
+    if x is None and y is None:
+        grid.add_sub_grid(sub_grid          )
+    elif x is None and y is not None:
+        grid.add_sub_grid(sub_grid,      y=y)
+    elif x is not None and y is None:
+        grid.add_sub_grid(sub_grid, x=x     )
+    else:
+        grid.add_sub_grid(sub_grid, x=x, y=y)
+
+    return sub_grid
 
 def test_grid_add_sub_grid(region_nodes):
     r1, n1, _, _, _ = region_nodes
-    grid = GridRows(r1)
+    grid = GridRows(r1, 1, 1)
 
-    grid.add_sub_grid(n1, x=10, y=10)
+    _add_sub_grid(grid, n1, x=10, y=10)
     assert grid._has_node(n1)
     assert grid._get_x(n1) == 10 and grid._get_y(n1) == 10
 
 def test_grid_add_sub_grid_defaults(region_nodes):
     r1, n1, n2, n3, n4 = region_nodes
-    grid = GridRows(r1)
+    grid = GridRows(r1, 1, 1)
 
-    grid.add_sub_grid(n1)
+    _add_sub_grid(grid, n1)
     assert grid._get_x(n1) == 0 and grid._get_y(n1) == 0
 
-    grid.add_sub_grid(n2)
+    _add_sub_grid(grid, n2)
     assert grid._get_x(n2) == 1 and grid._get_y(n2) == 0
 
-    grid.add_sub_grid(n3, y=1)
+    _add_sub_grid(grid, n3, y=1)
     assert grid._get_x(n3) == 0 and grid._get_y(n3) == 1
 
-    grid.add_sub_grid(n4, x=5)
+    _add_sub_grid(grid, n4, x=5)
     assert grid._get_x(n4) == 5 and grid._get_y(n4) == 1
 
 def test_grid_add_sub_grid_errors(region_nodes):
     r1, n1, n2, _, _ = region_nodes
-    grid = GridRows(r1)
+    grid = GridRows(r1, 1, 1)
 
-    grid.add_sub_grid(n1)
+    _add_sub_grid(grid, n1)
     assert grid._get_x(n1) == 0 and grid._get_y(n1) == 0
 
     with pytest.raises(AssertionError):
-        grid.add_sub_grid(n1)
+        _add_sub_grid(grid, n1)
 
     with pytest.raises(AssertionError):
-        grid.add_sub_grid(n2, x=0, y=0)
+        _add_sub_grid(grid, n2, x=0, y=0)
 
-def test_grid_del_sub_grid(region_nodes):
-    r1, n1, n2, _, _ = region_nodes
-    grid = GridRows(r1)
-
-    assert not grid._has_node(n1)
-    grid.add_sub_grid(n1, x=10, y=10)
-    assert grid._has_node(n1)
-    assert grid._get_x(n1) == 10 and grid._get_y(n1) == 10
-
-    grid.del_sub_grid(n1)
-    assert not grid._has_node(n1)
-    assert len(grid._coord2node) == 0
-    assert len(grid._node2coord) == 0
-
-    grid.add_sub_grid(n2, x=10, y=10)
-    grid.add_sub_grid(n1)
-    assert grid._get_x(n2) == 10 and grid._get_y(n2) == 10
-    assert grid._get_x(n1) == 11 and grid._get_y(n1) == 10
-
-def test_grid_dimension_empty(region_nodes):
+def _test_dimension_empty(grid_type, region_nodes):
     r1, _, _, _, _ = region_nodes
-    grid = GridRows(r1)
+    grid = globals()[grid_type](r1, 1, 1)
 
     assert grid.width  == 1
     assert grid.height == 1
 
-def test_grid_dimension_gets_cached(region_nodes):
+def test_grid_dimension_empty(region_nodes):
+    _test_dimension_empty('GridRows', region_nodes)
+    _test_dimension_empty('GridPack', region_nodes)
+
+def _test_grid_dimension_gets_cached(grid_type, region_nodes):
     r1, _, _, _, _ = region_nodes
-    grid = GridRows(r1)
+    grid = globals()[grid_type](r1, 1, 1)
 
     assert grid._width  == None
     assert grid.width  == 1
@@ -140,14 +144,18 @@ def test_grid_dimension_gets_cached(region_nodes):
     assert grid._height == 1
     assert grid.height == 1
 
-def test_grid_dimension_invalidated_by_add(region_nodes):
+def test_grid_dimension_gets_cached(region_nodes):
+    _test_grid_dimension_gets_cached('GridRows', region_nodes)
+    _test_grid_dimension_gets_cached('GridPack', region_nodes)
+
+def _test_grid_dimension_invalidated_by_add(grid_type, region_nodes):
     r1, n1, _, _, _ = region_nodes
-    grid = GridRows(r1)
+    grid = globals()[grid_type](r1, 1, 1)
 
     assert grid.width  == 1
     assert grid.height == 1
 
-    grid.add_sub_grid(n1)
+    _add_sub_grid(grid, n1, 0, 0)
 
     assert grid._width  == None
     assert grid.width  == 3
@@ -157,28 +165,14 @@ def test_grid_dimension_invalidated_by_add(region_nodes):
     assert grid.height == 3
     assert grid._height == 3
 
-def test_grid_dimension_invalidated_by_del(region_nodes):
+def test_grid_dimension_invalidated_by_add(region_nodes):
+    _test_grid_dimension_invalidated_by_add('GridRows', region_nodes)
+    _test_grid_dimension_invalidated_by_add('GridPack', region_nodes)
+
+def _test_grid_dimension_single(grid_type, region_nodes):
     r1, n1, _, _, _ = region_nodes
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
-
-    assert grid.width  == 3
-    assert grid.height == 3
-
-    grid.del_sub_grid(n1)
-
-    assert grid._width  == None
-    assert grid.width  == 1
-    assert grid._width  == 1
-
-    assert grid._height == None
-    assert grid.height == 1
-    assert grid._height == 1
-
-def test_grid_dimension_single(region_nodes):
-    r1, n1, _, _, _ = region_nodes
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
+    grid = globals()[grid_type](r1, 1, 1)
+    _add_sub_grid(grid, n1, 0, 0)
 
     grid_n1 = grid._sub_grid_from_node(n1)
 
@@ -192,6 +186,10 @@ def test_grid_dimension_single(region_nodes):
     assert grid.width  == offset_based_width(grid)
     assert grid.height == offset_based_height(grid)
 
+def test_grid_dimension_single(region_nodes):
+    _test_grid_dimension_single('GridRows', region_nodes)
+    _test_grid_dimension_single('GridPack', region_nodes)
+
 def test_grid_dimension_edges_other_single(regions, loose_nodes):
     r1, r2, _ = regions
     n1, n2, _, _ = loose_nodes
@@ -202,8 +200,8 @@ def test_grid_dimension_edges_other_single(regions, loose_nodes):
     n1.add_edge(n2)
     n2.add_edge(n1)
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1)
 
     grid_n1 = grid._sub_grid_from_node(n1)
 
@@ -230,8 +228,8 @@ def test_grid_dimension_edges_other_multiple_next(regions, loose_nodes):
     n1.add_edge(n3)
     n1.add_edge(n4)
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1)
 
     grid_n1 = grid._sub_grid_from_node(n1)
 
@@ -258,8 +256,8 @@ def test_grid_dimension_edges_other_multiple_prev(regions, loose_nodes):
     n3.add_edge(n1)
     n4.add_edge(n1)
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1)
 
     grid_n1 = grid._sub_grid_from_node(n1)
 
@@ -283,8 +281,8 @@ def test_grid_dimension_edges_local_single(regions, loose_nodes):
     n1.add_edge(n2)
     n2.add_edge(n1)
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1)
     # Intentionally don't add n2 to grid
 
     grid_n1 = grid._sub_grid_from_node(n1)
@@ -312,8 +310,8 @@ def test_grid_dimension_edges_local_multiple_next(regions, loose_nodes):
     n1.add_edge(n3)
     n1.add_edge(n4)
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1)
     # Intentionally don't add n2, n3, n4 to grid
 
     grid_n1 = grid._sub_grid_from_node(n1)
@@ -341,8 +339,8 @@ def test_grid_dimension_edges_local_multiple_prev(regions, loose_nodes):
     n3.add_edge(n1)
     n4.add_edge(n1)
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1)
     # Intentionally don't add n2, n3, n4 to grid
 
     grid_n1 = grid._sub_grid_from_node(n1)
@@ -356,6 +354,30 @@ def test_grid_dimension_edges_local_multiple_prev(regions, loose_nodes):
     assert grid_n1.height == offset_based_height(grid_n1)
     assert grid.width  == offset_based_width(grid)
     assert grid.height == offset_based_height(grid)
+
+def _test_grid_dimension_more_edges_than_sub_grids(grid_type, regions, loose_nodes):
+    r1, r2, _ = regions
+    _, n2, _, _ = loose_nodes
+
+    grid = globals()[grid_type](r1, 1, 1)
+
+    grid2 = globals()[grid_type](r2, 1, 1)
+    grid.add_sub_grid(grid2, 0, 0)
+
+    _add_sub_grid(grid2, n2, 0, 0)
+    # Don't bother adding other nodes/regions to grids
+
+    grid_n2 = grid2._sub_grid_from_node(n2)
+
+    assert grid_n2.width  == 1
+    assert grid_n2.height == 1
+    assert grid2.width  == 4
+    assert grid2.height == 4
+
+    assert grid_n2.width  == offset_based_width(grid_n2)
+    assert grid_n2.height == offset_based_height(grid_n2)
+    assert grid2.width  == offset_based_width(grid2)
+    assert grid2.height == offset_based_height(grid2)
 
 def test_grid_dimension_more_edges_than_sub_grids(regions, loose_nodes):
     r1, r2, r3 = regions
@@ -376,31 +398,17 @@ def test_grid_dimension_more_edges_than_sub_grids(regions, loose_nodes):
     r2.add_edge(n1)
     r2.add_edge(n1)
 
-    grid = GridRows(r1)
-    grid2 = grid.add_sub_grid(r2)
-    grid2.add_sub_grid(n2)
-    # Don't bother adding other nodes/regions to grids
-
-    grid_n2 = grid2._sub_grid_from_node(n2)
-
-    assert grid_n2.width  == 1
-    assert grid_n2.height == 1
-    assert grid2.width  == 4
-    assert grid2.height == 4
-
-    assert grid_n2.width  == offset_based_width(grid_n2)
-    assert grid_n2.height == offset_based_height(grid_n2)
-    assert grid2.width  == offset_based_width(grid2)
-    assert grid2.height == offset_based_height(grid2)
+    _test_grid_dimension_more_edges_than_sub_grids('GridRows', regions, loose_nodes)
+    _test_grid_dimension_more_edges_than_sub_grids('GridPack', regions, loose_nodes)
 
 def test_grid_dimension_multiple_nodes(region_nodes):
     r1, n1, n2, n3, n4 = region_nodes
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=0, y=0)
-    grid.add_sub_grid(n2, x=0, y=1)
-    grid.add_sub_grid(n3, x=1, y=0)
-    grid.add_sub_grid(n4, x=1, y=1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=0, y=0)
+    _add_sub_grid(grid, n2, x=0, y=1)
+    _add_sub_grid(grid, n3, x=1, y=0)
+    _add_sub_grid(grid, n4, x=1, y=1)
 
     assert grid.width  == 5
     assert grid.height == 5
@@ -408,11 +416,26 @@ def test_grid_dimension_multiple_nodes(region_nodes):
     assert grid.width  == offset_based_width(grid)
     assert grid.height == offset_based_height(grid)
 
+def test_grid_pack_dimension_multiple_nodes(region_nodes):
+    r1, n1, n2, n3, n4 = region_nodes
+
+    grid = GridPack(r1, 1, 0)
+    _add_sub_grid(grid, n1, x=0, y=0)
+    _add_sub_grid(grid, n2, x=0, y=1)
+    _add_sub_grid(grid, n3, x=1, y=0)
+    _add_sub_grid(grid, n4, x=1, y=1)
+
+    assert grid.width  == 4
+    assert grid.height == 4
+
+    assert grid.width  == offset_based_width(grid)
+    assert grid.height == offset_based_height(grid)
+
 def test_grid_dimension_gaps(region_nodes):
     r1, n1, _, _, _ = region_nodes
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=1, y=1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=1, y=1)
 
     assert grid.width  == 3
     assert grid.height == 3
@@ -423,9 +446,9 @@ def test_grid_dimension_gaps(region_nodes):
 def test_grid_dimension_gaps_diagonal(region_nodes):
     r1, n1, n2, _, _ = region_nodes
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=0, y=0)
-    grid.add_sub_grid(n2, x=1, y=1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=0, y=0)
+    _add_sub_grid(grid, n2, x=1, y=1)
 
     assert grid.width  == 3
     assert grid.height == 5
@@ -442,10 +465,10 @@ def test_grid_dimension_non_default(region_nodes):
         padding_outer=o,
         padding_inner=i,
     )
-    grid.add_sub_grid(n1, x=0, y=0)
-    grid.add_sub_grid(n2, x=0, y=1)
-    grid.add_sub_grid(n3, x=1, y=0)
-    grid.add_sub_grid(n4, x=1, y=1)
+    _add_sub_grid(grid, n1, x=0, y=0)
+    _add_sub_grid(grid, n2, x=0, y=1)
+    _add_sub_grid(grid, n3, x=1, y=0)
+    _add_sub_grid(grid, n4, x=1, y=1)
 
     assert grid.width  == o + 1 + i + 1 + o
     assert grid.height == o + 1 + i + 1 + o
@@ -463,16 +486,13 @@ def test_grid_dimension_non_default_children(region_nodes):
 
     o, i = (2, 6)
 
-    grid = GridRows(r1,
-        padding_outer=o,
-        padding_inner=i,
-    )
-    grid2 = grid.add_sub_grid(r2)
+    grid = GridRows(r1, o, i)
+    grid2 = _add_sub_grid(grid, r2)
 
-    grid2.add_sub_grid(n1, x=0, y=0)
-    grid2.add_sub_grid(n2, x=0, y=1)
-    grid2.add_sub_grid(n3, x=1, y=0)
-    grid2.add_sub_grid(n4, x=1, y=1)
+    _add_sub_grid(grid2, n1, x=0, y=0)
+    _add_sub_grid(grid2, n2, x=0, y=1)
+    _add_sub_grid(grid2, n3, x=1, y=0)
+    _add_sub_grid(grid2, n4, x=1, y=1)
 
     assert grid2.width  == o + 1 + i + 1 + o
     assert grid2.height == o + 1 + i + 1 + o
@@ -486,10 +506,32 @@ def test_grid_dimension_nested():
     r3 = Region('r3', r2)
     n3 = Node('n3', r3)
 
-    grid1 = GridRows(r1)
-    grid2 = grid1.add_sub_grid(r2)
-    grid3 = grid2.add_sub_grid(r3)
-    grid4 = grid3.add_sub_grid(n3)
+    grid1 = GridRows(r1, 1, 1)
+    grid2 = _add_sub_grid(grid1, r2)
+    grid3 = _add_sub_grid(grid2, r3)
+    grid4 = _add_sub_grid(grid3, n3)
+
+    assert grid4.width == 1 and grid4.height == 1
+    assert grid3.width == 3 and grid3.height == 3
+    assert grid2.width == 5 and grid2.height == 5
+    assert grid1.width == 7 and grid1.height == 7
+
+def test_grid_pack_dimension_nested():
+    r1 = Region('r1')
+    r2 = Region('r2', r1)
+    r3 = Region('r3', r2)
+    n3 = Node('n3', r3)
+
+    grid1 = GridPack(r1, 1, 1)
+
+    grid2 = GridPack(r2, 1, 1)
+    grid1.add_sub_grid(grid2, 0, 0)
+
+    grid3 = GridPack(r3, 1, 1)
+    grid2.add_sub_grid(grid3, 0, 0)
+
+    grid4 = GridPack(n3, 1, 1)
+    grid3.add_sub_grid(grid4, 0, 0)
 
     assert grid4.width == 1 and grid4.height == 1
     assert grid3.width == 3 and grid3.height == 3
@@ -531,15 +573,15 @@ def test_grid_dimension_complex():
     for _ in range(3):
         n4.add_edge(o)
 
-    grid = GridRows(r1)
+    grid = GridRows(r1, 1, 1)
 
-    grid.add_sub_grid(n1, x=0, y=0)
-    grid.add_sub_grid(n2, x=1, y=0)
-    grid.add_sub_grid(n3, x=0, y=1)
-    grid.add_sub_grid(n4, x=1, y=1)
-    grid.add_sub_grid(n5, x=0, y=2)
-    grid.add_sub_grid(n6, x=0, y=4)
-    grid.add_sub_grid(n7, x=2, y=4)
+    _add_sub_grid(grid, n1, x=0, y=0)
+    _add_sub_grid(grid, n2, x=1, y=0)
+    _add_sub_grid(grid, n3, x=0, y=1)
+    _add_sub_grid(grid, n4, x=1, y=1)
+    _add_sub_grid(grid, n5, x=0, y=2)
+    _add_sub_grid(grid, n6, x=0, y=4)
+    _add_sub_grid(grid, n7, x=2, y=4)
 
     assert grid.width  == 15
     assert grid.height == 11
@@ -550,9 +592,9 @@ def test_grid_dimension_complex():
 def test_row_width(region_nodes):
     r1, n1, n2, _, _ = region_nodes
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=0, y=0)
-    grid.add_sub_grid(n2, x=1, y=0)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=0, y=0)
+    _add_sub_grid(grid, n2, x=1, y=0)
 
     assert grid._row_width_total(0) == 5
     with pytest.raises(KeyError):
@@ -561,11 +603,11 @@ def test_row_width(region_nodes):
 def test_row_offset(region_nodes):
     r1, n1, n2, n3, n4 = region_nodes
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=1, y=0)
-    grid.add_sub_grid(n2, x=0, y=1)
-    grid.add_sub_grid(n3, x=1, y=1)
-    grid.add_sub_grid(n4, x=2, y=1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=1, y=0)
+    _add_sub_grid(grid, n2, x=0, y=1)
+    _add_sub_grid(grid, n3, x=1, y=1)
+    _add_sub_grid(grid, n4, x=2, y=1)
 
     assert grid.width == 7
 
@@ -580,11 +622,11 @@ def test_row_offset_odd(region_nodes):
     n2.add_edge(n3)
     n2.add_edge(n4)
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=1, y=0)
-    grid.add_sub_grid(n2, x=0, y=1)
-    grid.add_sub_grid(n3, x=1, y=1)
-    grid.add_sub_grid(n4, x=2, y=1)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=1, y=0)
+    _add_sub_grid(grid, n2, x=0, y=1)
+    _add_sub_grid(grid, n3, x=1, y=1)
+    _add_sub_grid(grid, n4, x=2, y=1)
 
     assert grid.width == 8
 
@@ -596,19 +638,19 @@ def test_row_offset_odd(region_nodes):
 def test_sub_grid_from_coord(region_nodes):
     r1, n1, _, _, _ = region_nodes
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=1, y=0)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=1, y=0)
 
     assert grid._sub_grid_from_coord(1, 0) == grid._sub_grid_from_node(n1)
 
 def test_iter_offset(region_nodes):
     r1, n1, n2, n3, n4 = region_nodes
 
-    grid = GridRows(r1)
-    grid.add_sub_grid(n1, x=10, y=10)
-    grid.add_sub_grid(n2, x=10, y=15)
-    grid.add_sub_grid(n3, x=20, y=15)
-    grid.add_sub_grid(n4, x=30, y=30)
+    grid = GridRows(r1, 1, 1)
+    _add_sub_grid(grid, n1, x=10, y=10)
+    _add_sub_grid(grid, n2, x=10, y=15)
+    _add_sub_grid(grid, n3, x=20, y=15)
+    _add_sub_grid(grid, n4, x=30, y=30)
 
     assert grid.width  == 5
     assert grid.height == 7
@@ -907,7 +949,7 @@ def test_sub_grid_from_node(region):
     a = Node('a', region)
     r2 = Region('r2', region)
 
-    grid = place_on_grid(region, GridRows(region))
+    grid = place_on_grid(region, 1, 1)
     assert grid._sub_grid_from_node(a) == grid._node2grid[a]
     assert grid._sub_grid_from_node(r2) == grid._node2grid[r2]
 
@@ -920,17 +962,100 @@ def test_sub_grid_iter(region):
     c.add_edge(d)
     z.add_edge(d)
 
-    grid = place_on_grid(region, GridRows(region))
+    grid = place_on_grid(region, 1, 1)
+    assert isinstance(grid, GridRows)
+
     sub_grids = grid.sub_grids
     assert sub_grids[0].node == c
     assert sub_grids[1].node == z
     assert sub_grids[2].node == d
     assert sub_grids[3].node == b
 
+def test_independent_sub_grids_no_nodes():
+    assert _independent_sub_grids({}) == False
+
+def test_independent_sub_grids_few_nodes():
+    assert _independent_sub_grids({
+        Node('a'): 0, 
+        Node('b'): 1,
+    }) == False
+
+def test_independent_sub_grids_diff_depths():
+    assert _independent_sub_grids({
+        Node('a'): 0,
+        Node('b'): 1,
+        Node('c'): 2,
+    }) == False
+
+def test_independent_sub_grids_same_depths():
+    assert _independent_sub_grids({
+        Node('a'): 0,
+        Node('b'): 0,
+        Node('c'): 0,
+    }) == True
+
+def test_make_pack_grid_empty(region_nodes):
+    r1, _, _, _, _ = region_nodes
+    grid = _make_pack_grid(r1, 2, 3, [])
+    assert grid.width  == 1
+    assert grid.height == 1
+    assert len(list(grid.iter_offsets())) == 0
+
+def test_make_rows_grid_empty(region_nodes):
+    r1, _, _, _, _ = region_nodes
+    grid = _make_rows_grid(r1, 2, 3, [])
+    assert grid.width  == 1
+    assert grid.height == 1
+    assert len(list(grid.iter_offsets())) == 0
+
+def test_make_pack_grid_single_grid(region_nodes):
+    r1, n1, _, _, _ = region_nodes
+    grid = _make_pack_grid(r1, 2, 3, [
+        (GridPack(n1, 1, 1), None),
+    ])
+    assert grid.width  == 5
+    assert grid.height == 5
+    assert len(list(grid.iter_offsets())) == 1
+
+def test_make_rows_grid_single_grid(region_nodes):
+    r1, n1, _, _, _ = region_nodes
+    grid = _make_rows_grid(r1, 2, 3, [
+        (GridRows(n1, 1, 1), 0),
+    ])
+    assert grid.width  == 5
+    assert grid.height == 5
+    assert len(list(grid.iter_offsets())) == 1
+
+def test_make_pack_grid_multiple_grids(region_nodes):
+    r1, n1, n2, n3, n4 = region_nodes
+    grid = _make_pack_grid(r1, 2, 3, [
+        (GridPack(n1, 1, 1), None),
+        (GridRows(n2, 1, 1), None),
+        (GridPack(n3, 1, 1), None),
+        (GridRows(n4, 1, 1), None),
+    ])
+    assert grid.width  == 9
+    assert grid.height == 9
+    assert len(list(grid.iter_offsets())) == 4
+
+def test_make_rows_grid_multiple_grids(region_nodes):
+    r1, n1, n2, n3, n4 = region_nodes
+    grid = _make_rows_grid(r1, 2, 3, [
+        (GridPack(n1, 1, 1), 0),
+        (GridRows(n2, 1, 1), 1),
+        (GridPack(n3, 1, 1), 1),
+        (GridRows(n4, 1, 1), 2),
+    ])
+    assert grid.width  == 9
+    assert grid.height == 13
+    assert len(list(grid.iter_offsets())) == 4
+
 def test_place_on_grid_empty(region):
-    grid = place_on_grid(region, GridRows(region))
+    grid = place_on_grid(region, 1, 1)
+    assert isinstance(grid, GridRows)
+
     assert grid.node == region
-    assert grid.is_empty
+    assert grid._is_empty()
 
 def test_place_on_grid_one_level(region):
     a = Node('a', region)
@@ -941,11 +1066,13 @@ def test_place_on_grid_one_level(region):
     c.add_edge(d)
     a.add_edge(d)
 
-    grid = place_on_grid(region, GridRows(region))
+    grid = place_on_grid(region, 1, 1)
+    assert isinstance(grid, GridRows)
+
     sub_grids = grid.sub_grids
-    assert not grid.is_empty
+    assert not grid._is_empty()
     assert len(sub_grids) == 4
-    assert all(g.is_empty for g in sub_grids)
+    assert all(g._is_empty() for g in sub_grids)
 
 def test_place_on_grid_multi_level(region):
     a = Node('a', region)
@@ -956,18 +1083,73 @@ def test_place_on_grid_multi_level(region):
     d = Node('d', r3)
     a.add_edge(r2)
     b.add_edge(c)
+    b.add_edge(r3)
     c.add_edge(d)
     r3.add_edge(r2)
     d.add_edge(b)
 
-    grid1 = place_on_grid(region, GridRows(region))
+    grid1 = place_on_grid(region, 1, 1)
+    assert isinstance(grid1, GridRows)
     assert len(grid1.sub_grids) == 2
     assert a in grid1.sub_nodes and r2 in grid1.sub_nodes
 
     grid2 = grid1._sub_grid_from_node(r2)
+    assert isinstance(grid2, GridRows)
     assert len(grid2.sub_grids) == 2
     assert b in grid2.sub_nodes and r3 in grid2.sub_nodes
 
     grid3 = grid2._sub_grid_from_node(r3)
+    assert isinstance(grid3, GridRows)
     assert len(grid3.sub_grids) == 2
     assert c in grid3.sub_nodes and d in grid3.sub_nodes
+
+def test_place_on_grid_alternating_grids_top_pack():
+    r1 = Region('r1')
+
+    a1 = Node('a1', r1)
+    b1 = Node('b1', r1)
+    c1 = Node('c1', r1)
+    r2 = Region('r2', r1)
+
+    r3 = Region('r3', r2)
+
+    a3 = Node('a3', r3)
+    b3 = Node('b3', r3)
+    c3 = Node('c3', r3)
+    d3 = Node('d3', r3)
+
+    grid1 = place_on_grid(r1, 1, 1)
+    assert isinstance(grid1, GridPack)
+    assert len(grid1.sub_grids) == 4
+
+    grid2 = grid1._sub_grid_from_node(r2)
+    assert isinstance(grid2, GridRows)
+    assert len(grid2.sub_grids) == 1
+
+    grid3 = grid2._sub_grid_from_node(r3)
+    assert isinstance(grid3, GridPack)
+    assert len(grid3.sub_grids) == 4
+
+def test_place_on_grid_alternating_grids_top_rows():
+    r1 = Region('r1')
+
+    r2 = Region('r2', r1)
+
+    a2 = Node('a2', r2)
+    b2 = Node('b2', r2)
+    c2 = Node('c2', r2)
+    r3 = Region('r3', r2)
+
+    a3 = Node('a3', r3)
+
+    grid1 = place_on_grid(r1, 1, 1)
+    assert isinstance(grid1, GridRows)
+    assert len(grid1.sub_grids) == 1
+
+    grid2 = grid1._sub_grid_from_node(r2)
+    assert isinstance(grid2, GridPack)
+    assert len(grid2.sub_grids) == 4
+
+    grid3 = grid2._sub_grid_from_node(r3)
+    assert isinstance(grid3, GridRows)
+    assert len(grid3.sub_grids) == 1

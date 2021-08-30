@@ -10,5 +10,6 @@ __pycache__/
 *.prof
 
 test.json
+test.png
 notes
 experiments

@@ -32,14 +32,22 @@ def grids():
     a1.add_edge(z1)
     a1.add_edge(z1)
 
-    grid1 = GridRows(r1)
-    grid1_a1 = grid1.add_sub_grid(a1, x=1, y=1)
-    grid1_z1 = grid1.add_sub_grid(z1, x=0, y=1)
+    grid1 = GridRows(r1, 1, 1)
 
-    grid2 = grid1.add_sub_grid(r2, x=0, y=0)
+    grid1_a1 = GridRows(a1, 1, 1)
+    grid1.add_sub_grid(grid1_a1, x=1, y=1)
 
-    grid3 = grid2.add_sub_grid(r3, x=0, y=0)
-    grid3_n3 = grid3.add_sub_grid(n3, x=0, y=0)
+    grid1_z1 = GridRows(z1, 1, 1)
+    grid1.add_sub_grid(grid1_z1, x=0, y=1)
+
+    grid2 = GridRows(r2, 1, 1)
+    grid1.add_sub_grid(grid2, x=0, y=0)
+
+    grid3 = GridRows(r3, 1, 1)
+    grid2.add_sub_grid(grid3, x=0, y=0)
+
+    grid3_n3 = GridRows(n3, 1, 1)
+    grid3.add_sub_grid(grid3_n3, x=0, y=0)
 
     return grid1, grid1_a1, grid1_z1, grid2, grid3, grid3_n3
 
@@ -520,15 +528,29 @@ def test_edge_end_order():
     a1.add_edge(x2)
     a1.add_edge(y2)
 
-    grid0 = GridRows(r0, padding_inner=3)
-    grid1 = grid0.add_sub_grid(r1, x=0, y=0)
-    grid1.add_sub_grid(a1, x=0, y=0)
-    grid1.add_sub_grid(b1, x=2, y=1)
-    grid1.add_sub_grid(c1, x=1, y=1)
+    i, o = 1, 3
+    grid0 = GridRows(r0, i, o)
 
-    grid2 = grid0.add_sub_grid(r2, x=1, y=0)
-    grid2.add_sub_grid(x2, x=0, y=2)
-    grid2.add_sub_grid(y2, x=0, y=1)
+    grid1 = GridRows(r1, i, o)
+    grid0.add_sub_grid(grid1, x=0, y=0)
+
+    grid1_a1 = GridRows(a1, i, o)
+    grid1.add_sub_grid(grid1_a1, x=0, y=0)
+
+    grid1_b1 = GridRows(b1, i, o)
+    grid1.add_sub_grid(grid1_b1, x=2, y=1)
+
+    grid1_c1 = GridRows(c1, i, o)
+    grid1.add_sub_grid(grid1_c1, x=1, y=1)
+
+    grid2 = GridRows(r2, i, o)
+    grid0.add_sub_grid(grid2, x=1, y=0)
+
+    grid2_x2 = GridRows(x2, i, o)
+    grid2.add_sub_grid(grid2_x2, x=0, y=2)
+
+    grid2_y2 = GridRows(y2, i, o)
+    grid2.add_sub_grid(grid2_y2, x=0, y=1)
 
     locs = _grids2locations(grid0)
 
@@ -591,8 +613,8 @@ def test_dot2locations(tmp_path):
     assert len(locs._blocks) == 9
 
     blocks = list(locs.iter_blocks())
-    assert blocks[0].width  == 33
-    assert blocks[0].height == 13
+    assert blocks[0].width  == 17
+    assert blocks[0].height == 25
 
 def test_recursive_agraph_file_input(tmp_path):
     ex = tmp_path/'ex.dot'

@@ -23,7 +23,7 @@ from colour import Color
 
 from blockgraph.utils.spinner import sp, SPINNER_OK
 from blockgraph.converter.node import Node, Region
-from blockgraph.converter.grid import GridRows, Grid, place_on_grid
+from blockgraph.converter.grid import Grid, place_on_grid
 from blockgraph.locations import Locations, Direction
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
@@ -375,11 +375,7 @@ def _create_locations_edges(
             locs.add_edge(edge_end_id_from, edge_end_id_to)
 
 def _regions2grids(base_region: Region) -> Grid:
-    grid = GridRows(base_region,
-        padding_outer=2,
-        padding_inner=3,
-    )
-    return place_on_grid(base_region, grid)
+    return place_on_grid(base_region, 2, 3)
 
 def _grids2locations(
     grid: Grid,
