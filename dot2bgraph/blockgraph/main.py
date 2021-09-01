@@ -17,6 +17,7 @@ from pathlib import Path
 import argparse
 import json
 
+from blockgraph.utils.spinner import sp, SPINNER_OK
 from blockgraph.converter.directed import dot2locations, dots2locations
 from blockgraph.image import locations2image
 
@@ -59,4 +60,7 @@ def main():
     else:
         locations = dot2locations(path)
 
-    output_locations(args, locations)
+    with sp(type='spinner') as spinner:
+        spinner.text='Generating output'
+        output_locations(args, locations)
+        spinner.ok(SPINNER_OK)

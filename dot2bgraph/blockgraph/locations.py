@@ -13,12 +13,12 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Dict, Set, Optional
-from enum import Enum, auto
-
-from colour import Color
+from typing import Dict, Set, Optional, Tuple, NewType
+from enum import Enum
 
 from blockgraph.utils.color import bgraph_color
+
+Color = NewType('Color', Tuple[int,int,int])
 
 class Locations:
     ''' Class for all locations of blocks and edges
@@ -29,18 +29,18 @@ class Locations:
     track of IDs from the Locations object.
     '''
     def __init__(self, 
-        bg_color: str = '#ffffff', 
-        highlight_bg_color: str = '#ffffff', 
-        highlight_fg_color: str = '#000000',
+        bg_color: Color = (255,255,255), 
+        highlight_bg_color: Color = (255,255,255), 
+        highlight_fg_color: Color = (0,0,0),
     ):
         '''
         :param bg_color: Background color of the graph
         :param highlight_bg_color: Background color for graph highlights
         :param highlight_fg_color: Foreground color for graph highlights
         '''
-        self.bg_color = Color(bg_color)
-        self.highlight_bg_color = Color(highlight_bg_color)
-        self.highlight_fg_color = Color(highlight_fg_color)
+        self.bg_color = bg_color
+        self.highlight_bg_color = highlight_bg_color
+        self.highlight_fg_color = highlight_fg_color
 
         self._blocks_id_counter = 0
         self._blocks: Dict[int, _Block] = {} # Use dict as Blocks can be deleted
@@ -183,7 +183,7 @@ class _Block:
         self.width  = kwargs.get('width',  1)
         self.height = kwargs.get('height', 1)
         self.depth = kwargs.get('depth', 0)
-        self.color = Color(kwargs.get('color', '#cccccc'))
+        self.color = kwargs.get('color', (204,204,204))
         self.label = kwargs.get('label', None)
 
         self._edge_ends: Set[_EdgeEnd] = set()
@@ -270,7 +270,7 @@ class _EdgeEnd:
 
         self.x: int = kwargs.get('x', 0)
         self.y: int = kwargs.get('y', 0)
-        self.color = Color(kwargs.get('color', '#000000'))
+        self.color: Color = kwargs.get('color', (0,0,0))
         self.direction: Direction = Direction(kwargs.get('direction', Direction.UP))
         self.is_source: bool = kwargs.get('is_source', False)
         self.block_id: Optional[int] = kwargs.get('block_id', None)

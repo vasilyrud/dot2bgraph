@@ -5,7 +5,6 @@ name = "pypi"
 
 [packages]
 pygraphviz = "*"
-colour = "*"
 Pillow = "*"
 tqdm = "*"
 yaspin = "*"

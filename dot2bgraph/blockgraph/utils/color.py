@@ -14,7 +14,7 @@
 
 def bgraph_color(color):
     return (
-        (int(color.red  *255) << 16) | 
-        (int(color.green*255) <<  8) | 
-        (int(color.blue *255) <<  0)
+        (color[0] << 16) | 
+        (color[1] <<  8) | 
+        (color[2] <<  0)
     )

@@ -19,12 +19,11 @@ import glob
 import os
 
 from pygraphviz import AGraph
-from colour import Color
 
 from blockgraph.utils.spinner import sp, SPINNER_OK
 from blockgraph.converter.node import Node, Region
 from blockgraph.converter.grid import Grid, place_on_grid
-from blockgraph.locations import Locations, Direction
+from blockgraph.locations import Locations, Direction, Color
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
 EdgeToEdgeEnds = NewType('EdgeToEdgeEnds', Dict[Tuple[Node,Node], List[int]])
@@ -180,17 +179,16 @@ def _agraph2regions(agraph: AGraph) -> Region:
 
     return base_region
 
-def _get_color(depth: int, max_depth: int) -> str:
+def _get_color(depth: int, max_depth: int) -> Color:
     ''' Provide color shade based on relative depth.
     '''
-
     shift = 0.2*max_depth
     max_val = max_depth + 2*shift
     val = depth + shift
     col = 1 - val/max_val
+    col = int(col * 255)
 
-    color = Color(rgb=(col, col, col))
-    return color.hex_l
+    return (col,col,col)
 
 def _iter_sub_grid_offsets(
     grid: Grid,

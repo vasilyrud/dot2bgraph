@@ -568,14 +568,16 @@ def test_edge_end_order():
 
 def test_get_color_order(colors):
     assert all(
-        int(colors[i][1:3], 16) > int(colors[i+1][1:3], 16) 
+        colors[i][0] > colors[i+1][0] and 
+        colors[i][1] > colors[i+1][1] and 
+        colors[i][2] > colors[i+1][2]
         for i in range(len(colors)-1)
     )
 
 def test_get_color_gray(colors):
     assert all(
-        color[1:3] == color[3:5] and 
-        color[3:5] == color[5:7]
+        color[0] == color[1] and 
+        color[1] == color[2]
         for color in colors
     )
 

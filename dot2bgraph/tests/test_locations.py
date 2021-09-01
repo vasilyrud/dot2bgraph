@@ -2,7 +2,6 @@ import pytest
 import pathlib
 import json
 # import jsonschema
-from colour import Color
 
 from blockgraph.locations import Locations, _Block, _EdgeEnd, Direction
 
@@ -57,18 +56,18 @@ def test_locations_init_default():
     assert locs._blocks_id_counter == 0
     assert locs._edge_ends_id_counter == 0
 
-    assert locs.bg_color == Color('#ffffff')
-    assert locs.highlight_bg_color == Color('#ffffff')
-    assert locs.highlight_fg_color == Color('#000000')
+    assert locs.bg_color == (255,255,255)
+    assert locs.highlight_bg_color == (255,255,255)
+    assert locs.highlight_fg_color == (0,0,0)
 
 def test_locations_init():
-    locs = Locations('#000001', '#000002', '#fffff3')
+    locs = Locations((0,0,1), (0,0,2), (255,255,243))
     assert locs._blocks_id_counter == 0
     assert locs._edge_ends_id_counter == 0
 
-    assert locs.bg_color == Color('#000001')
-    assert locs.highlight_bg_color == Color('#000002')
-    assert locs.highlight_fg_color == Color('#fffff3')
+    assert locs.bg_color == (0,0,1)
+    assert locs.highlight_bg_color == (0,0,2)
+    assert locs.highlight_fg_color == (255,255,243)
 
 def test_add_block_default():
     locs = Locations()
@@ -76,7 +75,7 @@ def test_add_block_default():
     assert locs.block(b0).coords == (0,0)
     assert locs.block(b0).size == (1,1)
     assert locs.block(b0).depth == 0
-    assert locs.block(b0).color == Color('#cccccc')
+    assert locs.block(b0).color == (204,204,204)
     assert len(locs.block(b0).edge_ends) == 0
 
 def test_add_block():
@@ -121,7 +120,7 @@ def test_add_edge_end_default():
     locs = Locations()
     e0 = locs.add_edge_end()
     assert locs.edge_end(e0).coords == (0,0)
-    assert locs.edge_end(e0).color == Color('#000000')
+    assert locs.edge_end(e0).color == (0,0,0)
     assert locs.edge_end(e0).is_source == False
     assert locs.edge_end(e0).direction == Direction.UP
     assert locs.edge_end(e0).block_id == None

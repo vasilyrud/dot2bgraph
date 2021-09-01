@@ -1,15 +1,9 @@
 import pytest
 
-from colour import Color
 from PIL import Image
 
 from blockgraph.locations import Locations
-from blockgraph.image import _color2rgb, _generate_pixels, locations2image
-
-def test_color2rgb():
-    assert _color2rgb(Color('#000000')) == (0,0,0)
-    assert _color2rgb(Color('#cccccc')) == (204,204,204)
-    assert _color2rgb(Color('#ffffff')) == (255,255,255)
+from blockgraph.image import _generate_pixels, locations2image
 
 def test_generate_pixels_empty():
     locs = Locations()
@@ -22,7 +16,7 @@ def test_generate_pixels_empty():
 
 def test_generate_pixels():
     locs = Locations()
-    locs.add_block(x=0, y=0, color="#cccccc")
+    locs.add_block(x=0, y=0, color=(204,204,204))
     locs.add_edge_end(x=0, y=1)
     expected_dim = (5, 6)
 

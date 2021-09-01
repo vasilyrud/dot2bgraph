@@ -18,12 +18,6 @@ from PIL import Image
 
 PADDING = 2
 
-def _color2rgb(color):
-    r = color.hex_l[1:3]
-    g = color.hex_l[3:5]
-    b = color.hex_l[5:7]
-    return (int(r,16), int(g,16), int(b,16))
-
 def _generate_pixels(locs):
     img_width  = locs.width  + 2*PADDING
     img_height = locs.height + 2*PADDING
@@ -39,7 +33,7 @@ def _generate_pixels(locs):
 
                 if block.depth < depths[y][x]: continue
 
-                img[y][x] = _color2rgb(block.color)
+                img[y][x] = block.color
                 depths[y][x] = block.depth
 
     for edge_end in locs.iter_edge_ends():
