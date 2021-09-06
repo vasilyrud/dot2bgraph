@@ -602,7 +602,7 @@ def _make_pack_grid(
             sub_grid.node.name
         ))
 
-    _, placements = pack_rectangles(rectangles)
+    _, _, placements = pack_rectangles(rectangles)
 
     for _, x, y, _, _, rid in placements:
         grid.add_sub_grid(

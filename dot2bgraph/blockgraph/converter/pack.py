@@ -13,14 +13,15 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import List
+from typing import List, Tuple
 from collections import namedtuple
 
 from rectpack import newPacker
 
 Rectangle = namedtuple('Rectangle', ['w', 'h', 'rid'])
+Packed = namedtuple('Packed', ['b', 'x', 'y', 'w', 'h', 'rid'])
 
-def _do_pack(bin, rects):
+def _do_pack(bin: Tuple[int,int], rects: List[Rectangle]) -> List[Packed]:
     packer = newPacker(rotation=False)
 
     packer.add_bin(*bin)
@@ -30,7 +31,7 @@ def _do_pack(bin, rects):
     packer.pack()
     return packer.rect_list()
 
-def _square_bin_bounds(rectangles):
+def _square_bin_bounds(rectangles: List[Rectangle]) -> Tuple[int,int,List[Packed]]:
     ''' Search for largest square bin size that accomodates 
     the rectangles.
 
@@ -52,31 +53,47 @@ def _square_bin_bounds(rectangles):
 
     return fit, non_fit, packed_rectangles
 
-def _square_bin_binary_search(rectangles, non_fit, fit):
-    ''' Try smaller sizes between the working and non-working 
-    bin size in binary search order.
+def _next_bin(
+    original_fit: int, new_fit: int, 
+    opt_x: bool, opt_y: bool,
+) -> Tuple[int,int]:
+    return (
+        new_fit if opt_x else original_fit,
+        new_fit if opt_y else original_fit,
+    )
 
-    `fit` must be an upper bound for which packing succeeds.
-    `non_fit` must be a lower bound for which packing fails.
+def _bin_binary_search(
+    rectangles: List[Rectangle],
+    original_non_fit: int, original_fit: int,
+    opt_x: bool, opt_y: bool,
+) -> Tuple[int,List[Packed]]:
+    assert original_non_fit is not None
+    assert original_fit     is not None
+    assert original_non_fit < original_fit
 
-    Return None if no better square bin can be found.
-    '''
-    assert non_fit is not None
-    assert non_fit < fit
+    non_fit = original_non_fit
+    fit     = original_fit
 
-    new_fit = fit
-    better_fit = fit
-    better_rectangles = _do_pack((fit,fit), rectangles)
+    new_fit = original_fit
+    packed_rectangles = _do_pack(
+        _next_bin(original_fit, new_fit, opt_x, opt_y), 
+        rectangles
+    )
+
+    better_fit = new_fit
+    better_packed = packed_rectangles
 
     while True:
         if non_fit + 1 == fit:
             break
 
         new_fit = non_fit + (fit - non_fit) // 2
+        packed_rectangles = _do_pack(
+            _next_bin(original_fit, new_fit, opt_x, opt_y), 
+            rectangles
+        )
 
-        packed_rectangles = _do_pack((new_fit,new_fit), rectangles)
         cur_worked = len(packed_rectangles) == len(rectangles)
-
         if cur_worked:
             fit = new_fit
         else:
@@ -84,19 +101,27 @@ def _square_bin_binary_search(rectangles, non_fit, fit):
 
         if cur_worked and new_fit < better_fit:
             better_fit = new_fit
-            better_rectangles = packed_rectangles
+            better_packed = packed_rectangles
 
-    return better_fit, better_rectangles
+    return better_fit, better_packed
 
-def pack_rectangles(rectangles: List[Rectangle]):
+def pack_rectangles(rectangles: List[Rectangle]) -> Tuple[int,int,List[Packed]]:
     ''' Try packing rectangles in boxes of different sizes
-    until the smallest "square" size is found.
+    until the smallest size is found.
     '''
-    if not rectangles: return 0, []
+    if not rectangles: return 0, 0, []
 
-    fit, non_fit, packed_rectangles = _square_bin_bounds(rectangles)
+    fit, non_fit, packed = _square_bin_bounds(rectangles)
     if non_fit is not None:
-        fit, packed_rectangles = _square_bin_binary_search(rectangles, non_fit, fit)
+        fit, packed = _bin_binary_search(rectangles, non_fit, fit, True, True)
 
-    assert len(rectangles) == len(packed_rectangles)
-    return fit, packed_rectangles
+    width_fit,  width_packed  = _bin_binary_search(rectangles, 0, fit, True, False)
+    height_fit, height_packed = _bin_binary_search(rectangles, 0, fit, False, True)
+
+    if width_fit < height_fit:
+        width, height, packed = width_fit,  fit, width_packed
+    else:
+        width, height, packed = fit, height_fit, height_packed
+
+    assert len(rectangles) == len(packed)
+    return width, height, packed
