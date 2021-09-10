@@ -618,6 +618,22 @@ def test_dot2locations(tmp_path):
     assert blocks[0].width  == 17
     assert blocks[0].height == 25
 
+def test_dot2locations_empty(tmp_path):
+    dot = '''
+    digraph X {
+    }
+    '''
+
+    dotfile = tmp_path/'test.dot'
+    dotfile.write_text(dot)
+
+    locs = dot2locations(dotfile)
+    assert len(locs._blocks) == 1
+
+    blocks = list(locs.iter_blocks())
+    assert blocks[0].width  == 1
+    assert blocks[0].height == 1
+
 def test_recursive_agraph_file_input(tmp_path):
     ex = tmp_path/'ex.dot'
     ex.write_text('digraph G { A; }')
