@@ -81,6 +81,18 @@ def _direct_edges(
 
     return direct_edges
 
+def _add_graph_label(agraph, region):
+    if 'label' in agraph.graph_attr:
+        region.label = agraph.graph_attr['label']
+
+def _add_node_label(anode, node):
+    if 'label' in anode.attr and anode.attr['label'] is not None:
+        # "\N" in graphviz indicates "use node name"
+        if anode.attr['label'] == '\\N':
+            node.label = anode.name
+        else:
+            node.label = anode.attr['label']
+
 def _create_regions_nodes(
     agraph: AGraph,
     parent_region: Optional[Region] = None,
@@ -92,19 +104,11 @@ def _create_regions_nodes(
     anodes_to_nodes: ANodeToNode = cast(ANodeToNode, {}) if in_anodes_to_nodes is None else in_anodes_to_nodes
 
     cur_region = Region(agraph.name, parent_region)
-
-    if 'label' in agraph.graph_attr:
-        cur_region.label = agraph.graph_attr['label']
+    _add_graph_label(agraph, cur_region)
 
     for anode in _direct_nodes(agraph, set(anodes_to_nodes.keys())):
         node = Node(anode, cur_region)
-
-        if 'label' in anode.attr and anode.attr['label'] is not None:
-            # "\N" in graphviz indicates "use node name"
-            if anode.attr['label'] == '\\N':
-                node.label = anode.name
-            else:
-                node.label = anode.attr['label']
+        _add_node_label(anode, node)
 
         anodes_to_nodes[anode] = node
 
@@ -116,6 +120,23 @@ def _create_regions_nodes(
         )
 
     return cur_region, anodes_to_nodes
+
+def _add_subgraph_node(to_subgraph, node, node_name):
+    if 'label' in node.attr and node.attr['label'] is not None:
+        to_subgraph.add_node(node_name, label=node.attr['label'])
+    else:
+        to_subgraph.add_node(node_name)
+
+def _add_subgraph_edge(to_subgraph, edge, edge_name):
+    to_subgraph.add_edge(edge_name)
+
+def _add_subgraph_subgraph(to_subgraph, subgraph, subgraph_name):
+    new_subgraph = to_subgraph.add_subgraph(name=subgraph_name)
+
+    if 'label' in subgraph.graph_attr:
+        new_subgraph.graph_attr['label'] = subgraph.graph_attr['label']
+
+    return new_subgraph
 
 def _populate_subgraph(
     to_subgraph: AGraph,
@@ -132,26 +153,22 @@ def _populate_subgraph(
     for from_node in _direct_nodes(from_subgraph, seen_nodes):
         anode_name = f'{node_namespace}:{from_node}'
 
-        if 'label' in from_node.attr and from_node.attr['label'] is not None:
-            to_subgraph.add_node(anode_name, label=from_node.attr['label'])
-        else:
-            to_subgraph.add_node(anode_name)
-
+        _add_subgraph_node(to_subgraph, from_node, anode_name)
         seen_nodes.add(anode_name)
 
     for from_edge in _direct_edges(from_subgraph, seen_edges):
-        edge_name = (f'{node_namespace}:{from_edge[0]}',f'{node_namespace}:{from_edge[1]}')
-        to_subgraph.add_edge(edge_name)
+        edge_name = (
+            f'{node_namespace}:{from_edge[0]}',
+            f'{node_namespace}:{from_edge[1]}'
+        )
 
+        _add_subgraph_edge(to_subgraph, from_edge, edge_name)
         seen_edges.add(edge_name)
 
     for sub_from_subgraph in _sorted_subgraphs(from_subgraph):
         subgraph_name = f'{node_namespace}:{sub_from_subgraph.name}'
-        sub_to_subgraph = to_subgraph.add_subgraph(name=subgraph_name)
 
-        if 'label' in sub_from_subgraph.graph_attr:
-            sub_to_subgraph.graph_attr['label'] = sub_from_subgraph.graph_attr['label']
-
+        sub_to_subgraph = _add_subgraph_subgraph(to_subgraph, sub_from_subgraph, subgraph_name)
         _populate_subgraph(
             sub_to_subgraph,
             sub_from_subgraph,
@@ -245,7 +262,7 @@ def _create_locations_blocks(
 
     return node_to_block_id
 
-def _create_locations_ee_local_next(
+def _create_ee_local_next(
     locs: Locations,
     block_id: int,
     offset: SubGridOffset,
@@ -261,7 +278,7 @@ def _create_locations_ee_local_next(
         direction=Direction.DOWN
     )
 
-def _create_locations_ee_other_next(
+def _create_ee_other_next(
     locs: Locations,
     block_id: int,
     offset: SubGridOffset,
@@ -277,7 +294,7 @@ def _create_locations_ee_other_next(
         direction=Direction.RIGHT
     )
 
-def _create_locations_ee_local_prev(
+def _create_ee_local_prev(
     locs: Locations,
     block_id: int,
     offset: SubGridOffset,
@@ -293,7 +310,7 @@ def _create_locations_ee_local_prev(
         direction=Direction.DOWN
     )
 
-def _create_locations_ee_other_prev(
+def _create_ee_other_prev(
     locs: Locations,
     block_id: int,
     offset: SubGridOffset,
@@ -335,21 +352,21 @@ def _create_locations_edge_ends(
         node_from = offset.sub_grid.node
 
         for i, node_to in enumerate(_nodes_x_sorted(node_from.local_next, sub_grid_offsets)):
-            edge_end_id = _create_locations_ee_local_next(locs, block_id, offset, i)
+            edge_end_id = _create_ee_local_next(locs, block_id, offset, i)
             ee_from.setdefault((node_from, node_to), []).append(edge_end_id)
 
         for i, node_to in enumerate(_nodes_y_sorted(node_from.other_next, sub_grid_offsets)):
-            edge_end_id = _create_locations_ee_other_next(locs, block_id, offset, i)
+            edge_end_id = _create_ee_other_next(locs, block_id, offset, i)
             ee_from.setdefault((node_from, node_to), []).append(edge_end_id)
 
         node_to = offset.sub_grid.node
 
         for i, node_from in enumerate(_nodes_x_sorted(node_to.local_prev, sub_grid_offsets)):
-            edge_end_id = _create_locations_ee_local_prev(locs, block_id, offset, i)
+            edge_end_id = _create_ee_local_prev(locs, block_id, offset, i)
             ee_to.setdefault((node_from, node_to), []).append(edge_end_id)
 
         for i, node_from in enumerate(_nodes_y_sorted(node_to.other_prev, sub_grid_offsets)):
-            edge_end_id = _create_locations_ee_other_prev(locs, block_id, offset, i)
+            edge_end_id = _create_ee_other_prev(locs, block_id, offset, i)
             ee_to.setdefault((node_from, node_to), []).append(edge_end_id)
     
     return ee_from, ee_to
@@ -423,13 +440,46 @@ def dot2locations(dotfile: Path) -> Locations:
 def _dot_files_in_dir(dotdir):
     return sorted(glob.iglob(os.path.join(dotdir, '**/*.dot'), recursive=True))
 
+def _create_subgraphs_from_path(path, root_graph, root_folder):
+    ''' Create (or re-use) subgraphs hierarchically matching
+    folders in the file `path`. 
+
+    Return the final child-most subgraph.
+
+    For example, for "a/b/c.dot" create the subgraphs:
+        a
+         `- b
+             `- c.dot
+    and return the empty subgraph "c.dot".
+    ''' 
+    split_path = path.split(os.sep)
+
+    parent_graph = root_graph
+    parent_folder = root_folder
+
+    for folder in split_path:
+        child_folder = os.path.join(parent_folder, folder)
+
+        child_graph = parent_graph.get_subgraph(child_folder)
+        if child_graph is None:
+            child_graph = parent_graph.add_subgraph(name=child_folder, label=child_folder)
+
+        parent_graph = child_graph
+        parent_folder = child_folder
+
+    return parent_graph
+
 def _recursive_agraph(dotdir: Path) -> AGraph:
+    ''' Create an AGraph representing the hierarchy of
+    dot graphs mirroring the file paths to those dot
+    graphs and the graphs being subgraphs themselves.
+    '''
     assert dotdir.is_dir()
 
     root_path = dotdir.expanduser()
     root_folder = root_path.name
 
-    agraph = AGraph(strict=False, directed=True, name=root_folder, label=root_folder)
+    root_graph = AGraph(strict=False, directed=True, name=root_folder, label=root_folder)
 
     for found_file in sp(type='bar',
         items=_dot_files_in_dir(root_path),
@@ -437,24 +487,14 @@ def _recursive_agraph(dotdir: Path) -> AGraph:
     ):
         dotfile = Path(found_file)
         rel_path = os.path.normpath(os.path.relpath(dotfile, root_path))
-        split_path = rel_path.split(os.sep)
 
-        prev_subgraph = agraph
-        prev_folder = root_folder
-        for folder in split_path:
-            cur_folder = os.path.join(prev_folder, folder)
+        new_subgraph = _create_subgraphs_from_path(rel_path, root_graph, root_folder)
+        found_subgraph = AGraph(string=dotfile.read_text())
+        node_namespace = os.path.join(root_folder, rel_path)
 
-            cur_subgraph = prev_subgraph.get_subgraph(cur_folder)
-            if cur_subgraph is None:
-                cur_subgraph = prev_subgraph.add_subgraph(name=cur_folder, label=cur_folder)
+        _populate_subgraph(new_subgraph, found_subgraph, node_namespace)
 
-            prev_subgraph = cur_subgraph
-            prev_folder = cur_folder
-
-        from_agraph = AGraph(string=dotfile.read_text())
-        _populate_subgraph(prev_subgraph, from_agraph, os.path.join(root_folder, rel_path))
-
-    return agraph
+    return root_graph
 
 def dots2locations(dotdir: Path) -> Locations:
     agraph = _recursive_agraph(dotdir)
