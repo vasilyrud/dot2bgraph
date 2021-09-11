@@ -21,7 +21,7 @@ from blockgraph.utils.spinner import sp, SPINNER_OK
 from blockgraph.converter.directed import dot2locations, dots2locations
 from blockgraph.image import locations2image
 
-def output_locations(args, locations):
+def _output_locations(args, locations):
     if args.format == 'json':
         locations_obj = locations.to_obj()
 
@@ -39,7 +39,7 @@ def output_locations(args, locations):
         else:
             image.show()
 
-def main():
+def _parse_args(argv):
     parser = argparse.ArgumentParser(
         description='bgraph: large graph visualization')
 
@@ -52,7 +52,10 @@ def main():
     parser.add_argument('-R', '--recursive', action='store_true',
         help='Look for dot files recursively and make directory structure part of the graph.')
 
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+def main(argv):
+    args = _parse_args(argv)
 
     path = Path(args.dotfile)
     if args.recursive:
@@ -62,5 +65,5 @@ def main():
 
     with sp(type='spinner') as spinner:
         spinner.text='Generating output'
-        output_locations(args, locations)
+        _output_locations(args, locations)
         spinner.ok(SPINNER_OK)

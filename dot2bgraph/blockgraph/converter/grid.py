@@ -503,7 +503,7 @@ def _get_edge_types_recurse(
 def _get_edge_types(
     region: Region,
 ):
-    ''' Clasify edges in the graph.
+    ''' Classify edges in the graph.
 
     Call DFS to edge classification starting only
     at the source nodes.

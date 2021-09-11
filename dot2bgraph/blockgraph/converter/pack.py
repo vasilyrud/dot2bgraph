@@ -32,7 +32,7 @@ def _do_pack(bin: Tuple[int,int], rects: List[Rectangle]) -> List[Packed]:
     return packer.rect_list()
 
 def _square_bin_bounds(rectangles: List[Rectangle]) -> Tuple[int,int,List[Packed]]:
-    ''' Search for largest square bin size that accomodates 
+    ''' Search for largest square bin size that accommodates 
     the rectangles.
 
     Return the best-fit bin size (upper bound), the size 
