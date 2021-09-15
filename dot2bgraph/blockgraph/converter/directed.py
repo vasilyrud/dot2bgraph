@@ -27,6 +27,7 @@ from blockgraph.converter.grid import Grid, place_on_grid
 from blockgraph.locations import Locations, Direction, Color
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
+EdgeToEdgeLabel = NewType('EdgeToEdgeLabel', Dict[Tuple[Node,Node], str])
 EdgeToEdgeEnds = NewType('EdgeToEdgeEnds', Dict[Tuple[Node,Node], List[int]])
 NodeToBlockId  = NewType('NodeToBlockId',  Dict[Node, int])
 
@@ -86,12 +87,16 @@ def _add_graph_label(agraph, region):
         region.label = agraph.graph_attr['label']
 
 def _add_node_label(anode, node):
-    if 'label' in anode.attr and anode.attr['label'] is not None:
+    if 'label' in anode.attr and anode.attr['label']:
         # "\N" in graphviz indicates "use node name"
         if anode.attr['label'] == '\\N':
             node.label = anode.name
         else:
             node.label = anode.attr['label']
+
+def _add_edge_label(aedge, from_node, to_node, edge_labels):
+    if 'label' in aedge.attr and aedge.attr['label']:
+        edge_labels[(from_node, to_node)] = aedge.attr['label']
 
 def _create_regions_nodes(
     agraph: AGraph,
@@ -121,82 +126,34 @@ def _create_regions_nodes(
 
     return cur_region, anodes_to_nodes
 
-def _add_subgraph_node(to_subgraph, node, node_name):
-    if 'label' in node.attr and node.attr['label'] is not None:
-        to_subgraph.add_node(node_name, label=node.attr['label'])
-    else:
-        to_subgraph.add_node(node_name)
-
-def _add_subgraph_edge(to_subgraph, edge, edge_name):
-    to_subgraph.add_edge(edge_name)
-
-def _add_subgraph_subgraph(to_subgraph, subgraph, subgraph_name):
-    new_subgraph = to_subgraph.add_subgraph(name=subgraph_name)
-
-    if 'label' in subgraph.graph_attr:
-        new_subgraph.graph_attr['label'] = subgraph.graph_attr['label']
-
-    return new_subgraph
-
-def _populate_subgraph(
-    to_subgraph: AGraph,
-    from_subgraph: AGraph,
-    node_namespace: str,
-    in_seen_nodes: Optional[Set[str]] = None,
-    in_seen_edges: Optional[Set[str,str]] = None,
-) -> None:
-    ''' Copies from_subgraph recursively into to_subgraph.
-    '''
-    seen_nodes: Set[str] = set() if in_seen_nodes is None else in_seen_nodes
-    seen_edges: Set[Tuple[str,str]] = set() if in_seen_edges is None else in_seen_edges
-
-    for from_node in _direct_nodes(from_subgraph, seen_nodes):
-        anode_name = f'{node_namespace}:{from_node}'
-
-        _add_subgraph_node(to_subgraph, from_node, anode_name)
-        seen_nodes.add(anode_name)
-
-    for from_edge in _direct_edges(from_subgraph, seen_edges):
-        edge_name = (
-            f'{node_namespace}:{from_edge[0]}',
-            f'{node_namespace}:{from_edge[1]}'
-        )
-
-        _add_subgraph_edge(to_subgraph, from_edge, edge_name)
-        seen_edges.add(edge_name)
-
-    for sub_from_subgraph in _sorted_subgraphs(from_subgraph):
-        subgraph_name = f'{node_namespace}:{sub_from_subgraph.name}'
-
-        sub_to_subgraph = _add_subgraph_subgraph(to_subgraph, sub_from_subgraph, subgraph_name)
-        _populate_subgraph(
-            sub_to_subgraph,
-            sub_from_subgraph,
-            node_namespace,
-            seen_nodes,
-        )
-
 def _create_edges(
     base_agraph: AGraph, 
     anodes_to_nodes: ANodeToNode,
-) -> None:
+) -> EdgeToEdgeLabel:
     ''' Convert all the edges in the agraph to
     Nodes' edges.
     '''
-    for asource, adest in base_agraph.edges_iter():
+    edge_labels = {}
+
+    for aedge in base_agraph.edges_iter():
+        asource, adest = aedge
+
         from_node = anodes_to_nodes[asource]
         to_node   = anodes_to_nodes[adest]
 
         from_node.add_edge(to_node)
+        _add_edge_label(aedge, from_node, to_node, edge_labels)
 
-def _agraph2regions(agraph: AGraph) -> Region:
+    return edge_labels
+
+def _agraph2regions(agraph: AGraph) -> Tuple[Region,EdgeToEdgeLabel]:
     ''' Create graph consisting of Regions
     based on the graph consisting of AGraphs.
     '''
     base_region, anodes_to_nodes = _create_regions_nodes(agraph)
-    _create_edges(agraph, anodes_to_nodes)
+    edge_labels = _create_edges(agraph, anodes_to_nodes)
 
-    return base_region
+    return base_region, edge_labels
 
 def _get_color(depth: int, max_depth: int) -> Color:
     ''' Provide color shade based on relative depth.
@@ -375,6 +332,7 @@ def _create_locations_edges(
     locs: Locations,
     ee_from: EdgeToEdgeEnds,
     ee_to:   EdgeToEdgeEnds,
+    edge_labels,
 ) -> None:
 
     for edge, edge_end_ids_from in ee_from.items():
@@ -385,11 +343,16 @@ def _create_locations_edges(
             edge_end_id_to = ee_to[edge][i]
             locs.add_edge(edge_end_id_from, edge_end_id_to)
 
+            if edge in edge_labels:
+                locs.edge_end(edge_end_id_from).label = edge_labels[edge]
+                locs.edge_end(edge_end_id_to).label   = edge_labels[edge]
+
 def _regions2grids(base_region: Region) -> Grid:
     return place_on_grid(base_region, 2, 3)
 
 def _grids2locations(
     grid: Grid,
+    edge_labels,
 ) -> Locations:
     ''' Place a single grid's content into
     locations.
@@ -410,7 +373,7 @@ def _grids2locations(
         ee_from, ee_to = _create_locations_edge_ends(locs, sub_grid_offsets, node_to_block_id)
 
         spinner.text = 'Creating bgraph edges'
-        _create_locations_edges(locs, ee_from, ee_to)
+        _create_locations_edges(locs, ee_from, ee_to, edge_labels)
 
         spinner.text = 'Creating bgraph'
         spinner.ok(SPINNER_OK)
@@ -420,7 +383,7 @@ def _grids2locations(
 def _agraph2locations(agraph: AGraph) -> Locations:
     with sp(type='spinner') as spinner:
         spinner.text = 'Parsing dot graph'
-        base_region = _agraph2regions(agraph)
+        base_region, edge_labels = _agraph2regions(agraph)
         spinner.ok(SPINNER_OK)
 
     with sp(type='spinner') as spinner:
@@ -428,7 +391,7 @@ def _agraph2locations(agraph: AGraph) -> Locations:
         base_grid = _regions2grids(base_region)
         spinner.ok(SPINNER_OK)
 
-    locations = _grids2locations(base_grid)
+    locations = _grids2locations(base_grid, edge_labels)
     
     return locations
 
@@ -436,6 +399,64 @@ def dot2locations(dotfile: Path) -> Locations:
     assert dotfile.is_file()
     agraph = AGraph(string=dotfile.read_text(), label=dotfile.name)
     return _agraph2locations(agraph)
+
+def _add_subgraph_node(to_subgraph, node, node_name):
+    if 'label' in node.attr and node.attr['label']:
+        to_subgraph.add_node(node_name, label=node.attr['label'])
+    else:
+        to_subgraph.add_node(node_name)
+
+def _add_subgraph_edge(to_subgraph, edge, edge_name):
+    if 'label' in edge.attr and edge.attr['label']:
+        to_subgraph.add_edge(edge_name, label=edge.attr['label'])
+    else:
+        to_subgraph.add_edge(edge_name)
+
+def _add_subgraph_subgraph(to_subgraph, subgraph, subgraph_name):
+    new_subgraph = to_subgraph.add_subgraph(name=subgraph_name)
+
+    if 'label' in subgraph.graph_attr:
+        new_subgraph.graph_attr['label'] = subgraph.graph_attr['label']
+
+    return new_subgraph
+
+def _populate_subgraph(
+    to_subgraph: AGraph,
+    from_subgraph: AGraph,
+    node_namespace: str,
+    in_seen_nodes: Optional[Set[str]] = None,
+    in_seen_edges: Optional[Set[str,str]] = None,
+) -> None:
+    ''' Copies from_subgraph recursively into to_subgraph.
+    '''
+    seen_nodes: Set[str] = set() if in_seen_nodes is None else in_seen_nodes
+    seen_edges: Set[Tuple[str,str]] = set() if in_seen_edges is None else in_seen_edges
+
+    for from_node in _direct_nodes(from_subgraph, seen_nodes):
+        anode_name = f'{node_namespace}:{from_node}'
+
+        _add_subgraph_node(to_subgraph, from_node, anode_name)
+        seen_nodes.add(anode_name)
+
+    for from_edge in _direct_edges(from_subgraph, seen_edges):
+        edge_name = (
+            f'{node_namespace}:{from_edge[0]}',
+            f'{node_namespace}:{from_edge[1]}'
+        )
+
+        _add_subgraph_edge(to_subgraph, from_edge, edge_name)
+        seen_edges.add(edge_name)
+
+    for sub_from_subgraph in _sorted_subgraphs(from_subgraph):
+        subgraph_name = f'{node_namespace}:{sub_from_subgraph.name}'
+
+        sub_to_subgraph = _add_subgraph_subgraph(to_subgraph, sub_from_subgraph, subgraph_name)
+        _populate_subgraph(
+            sub_to_subgraph,
+            sub_from_subgraph,
+            node_namespace,
+            seen_nodes,
+        )
 
 def _dot_files_in_dir(dotdir):
     return sorted(glob.iglob(os.path.join(dotdir, '**/*.dot'), recursive=True))

@@ -5,9 +5,9 @@ from pygraphviz import AGraph
 
 from blockgraph.converter.directed import (
     _sorted_subgraphs, _direct_nodes, _direct_edges,
-    _create_regions_nodes, _agraph2regions,
+    _create_regions_nodes, _create_edges, _agraph2regions,
     _iter_sub_grid_offsets, _grids2locations,
-    _get_color, dot2locations,
+    _get_color, dot2locations, _populate_subgraph,
     _recursive_agraph, dots2locations,
 )
 from blockgraph.converter.node import Node, Region
@@ -98,7 +98,24 @@ def test_anodes_to_nodes():
     assert anodes_to_nodes[agraph.get_node('b')] in nodes_A.values()
     assert nodes_A['a'] != nodes_A['b']
 
-def test_labels():
+def test_labels_none():
+    dot = '''
+    digraph X {
+        subgraph cluster_A {
+            a;
+        }
+    }
+    '''
+    agraph = AGraph(string=dot)
+    base_region, _ = _create_regions_nodes(agraph)
+
+    assert base_region.label == None
+    region_A = base_region.nodes_map['cluster_A']
+    assert region_A.label == None
+    node_a = region_A.nodes_map['a']
+    assert node_a.label == None
+
+def test_labels_nodes():
     dot = '''
     digraph X {
         label="label_X";
@@ -116,6 +133,24 @@ def test_labels():
     assert region_A.label == 'label_A'
     node_a = region_A.nodes_map['a']
     assert node_a.label == 'label_a'
+
+def test_labels_edges():
+    dot = '''
+    digraph X {
+        c -> b;
+        subgraph cluster_A {
+            a -> b [label="label_ab"];
+        }
+    }
+    '''
+    agraph = AGraph(string=dot)
+    _, anodes_to_nodes = _create_regions_nodes(agraph)
+    edge_labels = _create_edges(agraph, anodes_to_nodes)
+
+    assert len(edge_labels) == 1
+    assert list(edge_labels.keys())[0][0].name == 'a'
+    assert list(edge_labels.keys())[0][1].name == 'b'
+    assert list(edge_labels.values())[0] == 'label_ab'
 
 def test_direct_nodes():
     dot = '''
@@ -174,7 +209,7 @@ def test_agraph2regions_empty():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 0
@@ -194,7 +229,7 @@ def test_agraph2regions_child():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 2
@@ -223,7 +258,7 @@ def test_agraph2regions_sibling():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 3
@@ -255,7 +290,7 @@ def test_agraph2regions_child_2():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 1
@@ -291,7 +326,7 @@ def test_agraph2regions_sibling_2():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 2
@@ -325,7 +360,7 @@ def test_agraph2regions_reverse_sibling():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     assert len(base_nodes) == 3
@@ -357,7 +392,7 @@ def test_agraph2regions_sibling_child():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     nodes_A = base_nodes['cluster_A'].nodes_map
@@ -393,7 +428,7 @@ def test_agraph2regions_both_sibling_children():
     }
     '''
     agraph = AGraph(string=dot)
-    base_region = _agraph2regions(agraph)
+    base_region, _ = _agraph2regions(agraph)
 
     base_nodes = base_region.nodes_map
     nodes_A = base_nodes['cluster_A'].nodes_map
@@ -461,7 +496,7 @@ def test_iter_sub_grid_offset_depth(grids):
 def test_create_locations_blocks(grids):
     grid1, grid1_a1, grid1_z1, grid2, grid3, grid3_n3 = grids
 
-    locs = _grids2locations(grid1)
+    locs = _grids2locations(grid1, {})
     assert len(locs._blocks) == 6
 
     blocks = list(locs.iter_blocks())
@@ -473,7 +508,7 @@ def test_create_locations_blocks(grids):
 def test_create_locations_edge_ends_coords(grids):
     grid1, grid1_a1, grid1_z1, grid2, grid3, grid3_n3 = grids
 
-    locs = _grids2locations(grid1)
+    locs = _grids2locations(grid1, {})
     assert len(locs._edge_ends) == 8
 
     edge_ends = list(locs.iter_edge_ends())
@@ -489,7 +524,7 @@ def test_create_locations_edge_ends_coords(grids):
 def test_create_locations_edge_ends_direction(grids):
     grid1, grid1_a1, grid1_z1, grid2, grid3, grid3_n3 = grids
 
-    locs = _grids2locations(grid1)
+    locs = _grids2locations(grid1, {})
 
     edge_ends = list(locs.iter_edge_ends())
     for i in range(0,4):
@@ -500,7 +535,7 @@ def test_create_locations_edge_ends_direction(grids):
 def test_create_locations_edges(grids):
     grid1, grid1_a1, grid1_z1, grid2, grid3, grid3_n3 = grids
 
-    locs = _grids2locations(grid1)
+    locs = _grids2locations(grid1, {(grid1_a1.node,grid3_n3.node): 'label_a1n3'})
     edge_ends = list(locs.iter_edge_ends())
 
     assert edge_ends[2].edge_ends[0] == 0
@@ -512,6 +547,11 @@ def test_create_locations_edges(grids):
     assert edge_ends[1].edge_ends[0] == 3
     assert edge_ends[6].edge_ends[0] == 4
     assert edge_ends[7].edge_ends[0] == 5
+
+    for i in range(0,4):
+        assert locs.edge_end(i).label is None
+    for i in range(4,8):
+        assert locs.edge_end(i).label == 'label_a1n3'
 
 def test_edge_end_order():
     r0 = Region('r0')
@@ -552,7 +592,7 @@ def test_edge_end_order():
     grid2_y2 = GridRows(y2, i, o)
     grid2.add_sub_grid(grid2_y2, x=0, y=1)
 
-    locs = _grids2locations(grid0)
+    locs = _grids2locations(grid0, {})
 
     edge_ends = list(locs.iter_edge_ends())
 
@@ -633,6 +673,32 @@ def test_dot2locations_empty(tmp_path):
     blocks = list(locs.iter_blocks())
     assert blocks[0].width  == 1
     assert blocks[0].height == 1
+
+def test_populate_subgraph_labels():
+    dot = '''
+    digraph X {
+        label="label_X";
+        subgraph cluster_A {
+            label="label_A";
+            a [label="label_a"];
+        }
+        b;
+        a -> b [label="label_ab"];
+    }
+    '''
+    original_subgraph = AGraph(string=dot)
+    new_subgraph = AGraph(strict=False, directed=True, name='test:X')
+
+    _populate_subgraph(new_subgraph, original_subgraph, 'test')
+
+    # TODO
+
+    # print('')
+    # print(original_subgraph)
+    # print(new_subgraph)
+
+    # assert original_subgraph.graph_attr['label'] == 'label_X'
+    # assert new_subgraph.graph_attr['label'] == 'label_X'
 
 def test_recursive_agraph_file_input(tmp_path):
     ex = tmp_path/'ex.dot'
