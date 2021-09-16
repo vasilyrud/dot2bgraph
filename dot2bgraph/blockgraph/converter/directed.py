@@ -428,6 +428,7 @@ def _populate_subgraph(
     in_seen_edges: Optional[Set[str,str]] = None,
 ) -> None:
     ''' Copies from_subgraph recursively into to_subgraph.
+    Prepends "<node_namespace>:" to all node/edge/subgraph IDs.
     '''
     seen_nodes: Set[str] = set() if in_seen_nodes is None else in_seen_nodes
     seen_edges: Set[Tuple[str,str]] = set() if in_seen_edges is None else in_seen_edges

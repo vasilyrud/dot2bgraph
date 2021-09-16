@@ -684,21 +684,27 @@ def test_populate_subgraph_labels():
         }
         b;
         a -> b [label="label_ab"];
+        b -> a;
     }
     '''
     original_subgraph = AGraph(string=dot)
-    new_subgraph = AGraph(strict=False, directed=True, name='test:X')
+    new_subgraph = AGraph(strict=False, directed=True, name='test', label='test_label')
 
     _populate_subgraph(new_subgraph, original_subgraph, 'test')
 
-    # TODO
+    assert new_subgraph.graph_attr['label'] == 'test_label'
+    sub_A = new_subgraph.get_subgraph('test:cluster_A')
+    assert sub_A.graph_attr['label'] == 'label_A'
 
-    # print('')
-    # print(original_subgraph)
-    # print(new_subgraph)
+    node_a = sub_A.get_node('test:a')
+    assert node_a.attr['label'] == 'label_a'
+    node_b = new_subgraph.get_node('test:b')
+    assert node_b.attr['label'] == '\\N'
 
-    # assert original_subgraph.graph_attr['label'] == 'label_X'
-    # assert new_subgraph.graph_attr['label'] == 'label_X'
+    edge_ab = new_subgraph.get_edge('test:a', 'test:b')
+    assert edge_ab.attr['label'] == 'label_ab'
+    edge_ba = new_subgraph.get_edge('test:b', 'test:a')
+    assert edge_ba.attr['label'] == ''
 
 def test_recursive_agraph_file_input(tmp_path):
     ex = tmp_path/'ex.dot'
