@@ -11,25 +11,11 @@ def regions():
 def test_create_node():
     n1 = Node('node1')
     assert n1.name == 'node1'
-    assert n1.label == None
 
 def test_create_region():
     r1 = Region('ag')
     assert r1.name == 'ag'
     assert len(r1.nodes) == 0
-    assert r1.label == None
-
-def test_create_with_label_node():
-    n1 = Node('node1', label='label1')
-    assert n1.label == 'label1'
-    n1.label = 'label2'
-    assert n1.label == 'label2'
-
-def test_create_with_label_region():
-    r1 = Region('ag', label='label1')
-    assert r1.label == 'label1'
-    r1.label = 'label2'
-    assert r1.label == 'label2'
 
 def test_in_region(regions):
     r1, r2 = regions

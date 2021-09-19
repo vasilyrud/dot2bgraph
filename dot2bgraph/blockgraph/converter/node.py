@@ -23,7 +23,6 @@ class Node:
         *args, **kwargs
     ):
         self.name = name
-        self.label = kwargs.get('label', None)
 
         self._in_region: Optional[ref[Region]] = None
         self.in_region = in_region

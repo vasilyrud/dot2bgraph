@@ -27,6 +27,7 @@ from blockgraph.converter.grid import Grid, place_on_grid
 from blockgraph.locations import Locations, Direction, Color
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
+NodeToNodeLabel = NewType('NodeToNodeLabel', Dict[Node, str])
 EdgeToEdgeLabel = NewType('EdgeToEdgeLabel', Dict[Tuple[Node,Node], str])
 EdgeToEdgeEnds = NewType('EdgeToEdgeEnds', Dict[Tuple[Node,Node], List[int]])
 NodeToBlockId  = NewType('NodeToBlockId',  Dict[Node, int])
@@ -82,17 +83,16 @@ def _direct_edges(
 
     return direct_edges
 
-def _add_graph_label(agraph, region):
-    if 'label' in agraph.graph_attr:
-        region.label = agraph.graph_attr['label']
+def _add_graph_label(agraph, region, node_labels):
+    if 'label' in agraph.graph_attr and agraph.graph_attr['label']:
+        node_labels[region] = agraph.graph_attr['label']
 
-def _add_node_label(anode, node):
+def _add_node_label(anode, node, node_labels):
     if 'label' in anode.attr and anode.attr['label']:
-        # "\N" in graphviz indicates "use node name"
         if anode.attr['label'] == '\\N':
-            node.label = anode.name
+            node_labels[node] = anode.name
         else:
-            node.label = anode.attr['label']
+            node_labels[node] = anode.attr['label']
 
 def _add_edge_label(aedge, from_node, to_node, edge_labels):
     if 'label' in aedge.attr and aedge.attr['label']:
@@ -102,18 +102,20 @@ def _create_regions_nodes(
     agraph: AGraph,
     parent_region: Optional[Region] = None,
     in_anodes_to_nodes: Optional[ANodeToNode] = None,
-) -> Tuple[Region, ANodeToNode]:
+    in_node_labels: Optional[NodeToNodeLabel] = None,
+) -> Tuple[Region, ANodeToNode, NodeToNodeLabel]:
     ''' Create nodes in the cur_region and 
     its sub-regions.
     '''
     anodes_to_nodes: ANodeToNode = cast(ANodeToNode, {}) if in_anodes_to_nodes is None else in_anodes_to_nodes
+    node_labels: NodeToNodeLabel = cast(NodeToNodeLabel, {}) if in_node_labels is None else in_node_labels
 
     cur_region = Region(agraph.name, parent_region)
-    _add_graph_label(agraph, cur_region)
+    _add_graph_label(agraph, cur_region, node_labels)
 
     for anode in _direct_nodes(agraph, set(anodes_to_nodes.keys())):
         node = Node(anode, cur_region)
-        _add_node_label(anode, node)
+        _add_node_label(anode, node, node_labels)
 
         anodes_to_nodes[anode] = node
 
@@ -122,9 +124,10 @@ def _create_regions_nodes(
             sub_agraph, 
             cur_region, 
             anodes_to_nodes, 
+            node_labels,
         )
 
-    return cur_region, anodes_to_nodes
+    return cur_region, anodes_to_nodes, node_labels
 
 def _create_edges(
     base_agraph: AGraph, 
@@ -133,7 +136,7 @@ def _create_edges(
     ''' Convert all the edges in the agraph to
     Nodes' edges.
     '''
-    edge_labels = {}
+    edge_labels: EdgeToEdgeLabel = {}
 
     for aedge in base_agraph.edges_iter():
         asource, adest = aedge
@@ -146,14 +149,14 @@ def _create_edges(
 
     return edge_labels
 
-def _agraph2regions(agraph: AGraph) -> Tuple[Region,EdgeToEdgeLabel]:
+def _agraph2regions(agraph: AGraph) -> Tuple[Region,NodeToNodeLabel,EdgeToEdgeLabel]:
     ''' Create graph consisting of Regions
     based on the graph consisting of AGraphs.
     '''
-    base_region, anodes_to_nodes = _create_regions_nodes(agraph)
+    base_region, anodes_to_nodes, node_labels = _create_regions_nodes(agraph)
     edge_labels = _create_edges(agraph, anodes_to_nodes)
 
-    return base_region, edge_labels
+    return base_region, node_labels, edge_labels
 
 def _get_color(depth: int, max_depth: int) -> Color:
     ''' Provide color shade based on relative depth.
@@ -200,6 +203,7 @@ def _iter_sub_grid_offsets(
 def _create_locations_blocks(
     locs: Locations,
     sub_grid_offsets: Dict[Node,SubGridOffset],
+    node_labels: NodeToNodeLabel,
 ) -> NodeToBlockId:
     node_to_block_id: NodeToBlockId = {}
 
@@ -213,7 +217,7 @@ def _create_locations_blocks(
             height=offset.sub_grid.height,
             depth=offset.depth,
             color=_get_color(offset.depth, max_depth),
-            label=node.label,
+            label=node_labels[node] if node in node_labels else None,
         )
         node_to_block_id[offset.sub_grid.node] = block_id
 
@@ -352,7 +356,8 @@ def _regions2grids(base_region: Region) -> Grid:
 
 def _grids2locations(
     grid: Grid,
-    edge_labels,
+    node_labels: NodeToNodeLabel,
+    edge_labels: EdgeToEdgeLabel,
 ) -> Locations:
     ''' Place a single grid's content into
     locations.
@@ -367,7 +372,7 @@ def _grids2locations(
         }
 
         spinner.text = 'Creating bgraph blocks'
-        node_to_block_id = _create_locations_blocks(locs, sub_grid_offsets)
+        node_to_block_id = _create_locations_blocks(locs, sub_grid_offsets, node_labels)
 
         spinner.text = 'Creating bgraph edge ends'
         ee_from, ee_to = _create_locations_edge_ends(locs, sub_grid_offsets, node_to_block_id)
@@ -383,7 +388,7 @@ def _grids2locations(
 def _agraph2locations(agraph: AGraph) -> Locations:
     with sp(type='spinner') as spinner:
         spinner.text = 'Parsing dot graph'
-        base_region, edge_labels = _agraph2regions(agraph)
+        base_region, node_labels, edge_labels = _agraph2regions(agraph)
         spinner.ok(SPINNER_OK)
 
     with sp(type='spinner') as spinner:
@@ -391,7 +396,7 @@ def _agraph2locations(agraph: AGraph) -> Locations:
         base_grid = _regions2grids(base_region)
         spinner.ok(SPINNER_OK)
 
-    locations = _grids2locations(base_grid, edge_labels)
+    locations = _grids2locations(base_grid, node_labels, edge_labels)
     
     return locations
 
