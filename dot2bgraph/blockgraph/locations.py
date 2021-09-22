@@ -1,4 +1,4 @@
-# Copyright 2020 Vasily Rudchenko - bgraph
+# Copyright 2020 Vasily Rudchenko - dot2bgraph
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
 from __future__ import annotations
 from typing import Dict, Set, Optional, Tuple, NewType
 from enum import Enum
+from collections import namedtuple
 
 from blockgraph.utils.color import bgraph_color
 
-Color = NewType('Color', Tuple[int,int,int])
+Color = namedtuple('Color', ['r','g','b'])
 
 class Locations:
     ''' Class for all locations of blocks and edges

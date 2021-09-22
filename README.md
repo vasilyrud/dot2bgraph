@@ -22,7 +22,7 @@ PYTHONPATH=dot2bgraph python -m pytest -s --cov-report term-missing --cov=dot2bg
 ### Mypy
 
 ```
-MYPYPATH=dot2bgraph mypy dot2bgraph --config-file=mypy.ini
+MYPYPATH=dot2bgraph python -m mypy -p dot2bgraph --config-file=mypy.ini
 ```
 
 ### Profiling
