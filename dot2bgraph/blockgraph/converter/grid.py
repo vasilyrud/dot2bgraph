@@ -448,6 +448,25 @@ def _sources(region: Region) -> Iterable[Node]:
 
     return list(sorted(sources, key=lambda s: s.name))
 
+def _sinks(region: Region) -> Iterable[Node]:
+    ''' Get sinks, but only the ones that are "pure",
+    i.e., don't have any next edges.
+    Return in alphabetical order.
+    '''
+    seen = _SeenNodes()
+    sinks = set()
+
+    for node in region.nodes_sorted:
+        if node in seen.nodes: continue
+
+        conn_comp = set()
+        _get_conn_comp_dfs_recurse(node, seen, conn_comp)
+
+        assert conn_comp, 'Got empty set of connected components to get sinks from.'
+        sinks |= {node for node in conn_comp if not node.next}
+
+    return list(sorted(sinks, key=lambda s: s.name))
+
 def _classify_edge(
     edge,
     edge_types,
@@ -546,7 +565,8 @@ def _get_node_depths(
 
     q = deque()
 
-    for source in _sources(region):
+    sources = _sources(region)
+    for source in sources:
         node_depths[source] = Grid.MIN_INDEX
         seen_in_edges[source] = set()
 
@@ -569,6 +589,15 @@ def _get_node_depths(
                 _num_local_prev_forward_edges(next_node, edge_types)
             ):
                 q.append((next_node, cur_depth+1))
+
+    # Adjust sink depths so that all obvious sinks are 
+    # placed at the bottom of the graph for clarity. 
+    # This is not standard graphviz dot behavior, but is 
+    # preferable for certain graphs.
+    max_depth = max(node_depths.values(), default=Grid.MIN_INDEX)
+    for sink in _sinks(region):
+        if sink in sources: continue
+        node_depths[sink] = max_depth
 
     return node_depths
 

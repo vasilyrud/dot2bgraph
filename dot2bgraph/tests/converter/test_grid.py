@@ -2,7 +2,7 @@ import pytest
 
 from blockgraph.converter.grid import (
     GridRows, GridPack, EdgeType,
-    _sources, _get_edge_info,
+    _sources, _sinks, _get_edge_info,
     _independent_sub_grids,
     _make_pack_grid, _make_rows_grid,
     place_on_grid
@@ -768,6 +768,31 @@ def test_sources_reverse_order(region):
     assert len(srcs) == 1
     assert c in srcs
 
+def test_sinks_empty_region(region):
+    snks = _sinks(region)
+    assert len(snks) == 0
+
+def test_sinks_pure(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    d = Node('d', region)
+    a.add_edge(b)
+    c.add_edge(d)
+
+    snks = _sinks(region)
+    assert len(snks) == 2
+    assert snks[0] == b
+
+def test_sinks_not_pure(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    a.add_edge(b)
+    b.add_edge(a)
+
+    snks = _sinks(region)
+    assert len(snks) == 0
+
 def test_get_edge_info_loose(region):
     a = Node('a', region)
     b = Node('b', region)
@@ -909,6 +934,24 @@ def test_get_edge_info_update_depth(region):
     assert node_depths[d] == 1
     assert node_depths[e] == 3
 
+def test_get_edge_info_sinks_depth(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    d = Node('d', region)
+    e = Node('e', region)
+    f = Node('f', region)
+    g = Node('g', region)
+    a.add_edge(b)
+    c.add_edge(d)
+    d.add_edge(e)
+    f.add_edge(g)
+
+    _, node_depths = _get_edge_info(region)
+    assert node_depths[b] == 2
+    assert node_depths[e] == 2
+    assert node_depths[g] == 2
+
 def test_get_edge_info_update_depth_with_loop(region):
     a = Node('a', region)
     b = Node('b', region)
@@ -938,7 +981,7 @@ def test_get_edge_info_update_depth_with_loop(region):
     assert node_depths[b] == 2
     assert node_depths[c] == 1
     assert node_depths[d] == 1
-    assert node_depths[e] == 2
+    assert node_depths[e] == 6
     assert node_depths[f] == 3
     assert node_depths[g] == 4
     assert node_depths[h] == 5
