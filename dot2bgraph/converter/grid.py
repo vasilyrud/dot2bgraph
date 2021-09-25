@@ -19,8 +19,8 @@ from enum import Enum, auto
 from itertools import chain
 from abc import ABC, abstractmethod
 
-from blockgraph.converter.node import Node, Region
-from blockgraph.converter.pack import Rectangle, pack_rectangles
+from dot2bgraph.converter.node import Node, Region
+from dot2bgraph.converter.pack import Rectangle, pack_rectangles
 
 class EdgeType(Enum):
     NORMAL = auto()

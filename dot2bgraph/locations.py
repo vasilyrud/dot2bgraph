@@ -17,7 +17,7 @@ from typing import Dict, Set, Optional, Tuple, NewType
 from enum import Enum
 from collections import namedtuple
 
-from blockgraph.utils.color import bgraph_color
+from dot2bgraph.utils.color import bgraph_color
 
 Color = namedtuple('Color', ['r','g','b'])
 

@@ -10,13 +10,13 @@ pipenv install --dev
 ### CLI
 
 ```
-python dot2bgraph <dotfile>
+python -m dot2bgraph <dotfile>
 ```
 
 ### Pytest
 
 ```
-PYTHONPATH=dot2bgraph python -m pytest -s --cov-report term-missing --cov=dot2bgraph/blockgraph
+python -m pytest -s --cov-report term-missing --cov=dot2bgraph
 ```
 
 ### Mypy

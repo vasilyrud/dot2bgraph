@@ -1,6 +1,6 @@
 import pytest
 
-from blockgraph.utils.color import bgraph_color
+from dot2bgraph.utils.color import bgraph_color
 
 def test_bgraph_color():
     assert bgraph_color((  0,  0,  0)) == 0

@@ -21,10 +21,10 @@ import os
 
 from pygraphviz import AGraph
 
-from blockgraph.utils.spinner import sp, SPINNER_OK
-from blockgraph.converter.node import Node, Region
-from blockgraph.converter.grid import Grid, place_on_grid
-from blockgraph.locations import Locations, Direction, Color
+from dot2bgraph.utils.spinner import sp, SPINNER_OK
+from dot2bgraph.converter.node import Node, Region
+from dot2bgraph.converter.grid import Grid, place_on_grid
+from dot2bgraph.locations import Locations, Direction, Color
 
 ANodeToNode = NewType('ANodeToNode', Dict[str, Node])
 NodeToNodeLabel = NewType('NodeToNodeLabel', Dict[Node, str])

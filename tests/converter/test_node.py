@@ -1,6 +1,6 @@
 import pytest
 
-from blockgraph.converter.node import Node, Region
+from dot2bgraph.converter.node import Node, Region
 
 @pytest.fixture
 def regions():

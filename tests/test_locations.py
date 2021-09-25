@@ -3,7 +3,7 @@ import pathlib
 import json
 # import jsonschema
 
-from blockgraph.locations import Locations, _Block, _EdgeEnd, Direction
+from dot2bgraph.locations import Locations, _Block, _EdgeEnd, Direction
 
 def _make_blocks(locs: Locations):
     b0 = locs.add_block()

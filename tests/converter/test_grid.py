@@ -1,13 +1,13 @@
 import pytest
 
-from blockgraph.converter.grid import (
+from dot2bgraph.converter.grid import (
     GridRows, GridPack, EdgeType,
     _sources, _sinks, _get_edge_info,
     _independent_sub_grids,
     _make_pack_grid, _make_rows_grid,
     place_on_grid
 )
-from blockgraph.converter.node import Node, Region
+from dot2bgraph.converter.node import Node, Region
 
 def _region():
     return Region('r1')

@@ -2,8 +2,8 @@ import pytest
 
 from PIL import Image
 
-from blockgraph.locations import Locations
-from blockgraph.image import _generate_pixels, locations2image
+from dot2bgraph.locations import Locations
+from dot2bgraph.image import _generate_pixels, locations2image
 
 def test_generate_pixels_empty():
     locs = Locations()

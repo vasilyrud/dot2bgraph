@@ -3,20 +3,20 @@ import pytest
 
 from pygraphviz import AGraph
 
-from blockgraph.converter.directed import (
+from dot2bgraph.converter.directed import (
     _sorted_subgraphs, _direct_nodes, _direct_edges,
     _create_regions_nodes, _create_edges, _agraph2regions,
     _iter_sub_grid_offsets, _grids2locations,
     _get_color, dot2locations, _populate_subgraph,
     _recursive_agraph, dots2locations,
 )
-from blockgraph.converter.node import Node, Region
-from blockgraph.converter.grid import GridRows
-from blockgraph.locations import Direction
+from dot2bgraph.converter.node import Node, Region
+from dot2bgraph.converter.grid import GridRows
+from dot2bgraph.locations import Direction
 
 # Prevent spinners from printing during tests
-import blockgraph.utils.spinner
-blockgraph.utils.spinner._SPINNER_DISABLE = True
+import dot2bgraph.utils.spinner
+dot2bgraph.utils.spinner._SPINNER_DISABLE = True
 
 @pytest.fixture
 def grids():

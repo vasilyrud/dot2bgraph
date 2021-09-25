@@ -17,9 +17,9 @@ from pathlib import Path
 import argparse
 import json
 
-from blockgraph.utils.spinner import sp, SPINNER_OK
-from blockgraph.converter.directed import dot2locations, dots2locations
-from blockgraph.image import locations2image
+from dot2bgraph.utils.spinner import sp, SPINNER_OK
+from dot2bgraph.converter.directed import dot2locations, dots2locations
+from dot2bgraph.image import locations2image
 
 def _output_locations(args, locations):
     if args.format == 'json':

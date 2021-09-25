@@ -4,12 +4,12 @@ import os
 
 from PIL.Image import Image
 
-from blockgraph.main import _parse_args, _output_locations, main
-from blockgraph.locations import Locations
+from dot2bgraph.main import _parse_args, _output_locations, main
+from dot2bgraph.locations import Locations
 
 # Prevent spinners from printing during tests
-import blockgraph.utils.spinner
-blockgraph.utils.spinner._SPINNER_DISABLE = True
+import dot2bgraph.utils.spinner
+dot2bgraph.utils.spinner._SPINNER_DISABLE = True
 
 @pytest.fixture
 def locs():

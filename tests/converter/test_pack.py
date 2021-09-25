@@ -1,6 +1,6 @@
 import pytest
 
-from blockgraph.converter.pack import (
+from dot2bgraph.converter.pack import (
     Rectangle, pack_rectangles,
     _do_pack, _square_bin_bounds,
     _bin_binary_search,
