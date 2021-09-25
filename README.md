@@ -10,7 +10,7 @@ pipenv install --dev
 ### CLI
 
 ```
-PYTHONPATH=dot2bgraph python dot2bgraph <dotfile>
+python dot2bgraph <dotfile>
 ```
 
 ### Pytest
@@ -22,7 +22,7 @@ PYTHONPATH=dot2bgraph python -m pytest -s --cov-report term-missing --cov=dot2bg
 ### Mypy
 
 ```
-MYPYPATH=dot2bgraph python -m mypy -p dot2bgraph --config-file=mypy.ini
+python -m mypy -p dot2bgraph --config-file=mypy.ini
 ```
 
 ### Profiling
