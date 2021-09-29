@@ -1,10 +1,36 @@
 # dot2bgraph
 
+## Install
+
+First, ensure that you have `graphviz` installed, since it is a dependency for `pygraphviz` which, in turn, is a dependency for `dot2bgraph`.
+
+For example, in Ubuntu:
+
+```
+apt-get install graphviz graphviz-dev
+```
+
+Or in OSX:
+
+```
+brew install graphviz
+```
+
+For other platforms, see pygraphviz's [INSTALL.txt](https://github.com/pygraphviz/pygraphviz/blob/main/INSTALL.txt)
+
+Then, install `dot2bgraph`:
+
+```
+pip install dot2bgraph
+```
+
 ## Dev
 
 ```
+mkdir .venv
 pipenv shell
-pipenv install --dev
+pipenv install --dev -e .
+pipenv install -r requirements-dev.txt
 ```
 
 ### CLI
