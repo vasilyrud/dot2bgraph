@@ -14,6 +14,7 @@
 
 from pathlib import Path
 
+import sys
 import argparse
 import json
 
@@ -54,8 +55,8 @@ def _parse_args(argv):
 
     return parser.parse_args(argv)
 
-def main(argv):
-    args = _parse_args(argv)
+def main(argv=None):
+    args = _parse_args(sys.argv[1:] if argv is None else argv)
 
     path = Path(args.dotfile)
     if args.recursive:

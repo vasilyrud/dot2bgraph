@@ -36,7 +36,7 @@ pipenv install -r requirements-dev.txt
 ### CLI
 
 ```
-python -m dot2bgraph <dotfile>
+dot2bgraph <dotfile>
 ```
 
 ### Pytest

@@ -18,13 +18,13 @@ NAME = 'dot2bgraph'
 VERSION = '0.1.0'
 URL = 'https://github.com/vasilyrud/dot2bgraph'
 
-SHORT_DESCRIPTION = """
+SHORT_DESCRIPTION = '''
 A CLI to convert dot files to bgraph format for visualization.
-""".strip()
+'''.strip()
 
-LONG_DESCRIPTION = """
+LONG_DESCRIPTION = '''
 dot2bgraph is a CLI that converts to dot files to bgraph format for visualization.
-""".strip()
+'''.strip()
 
 DEPENDENCIES = [
     'pygraphviz',
@@ -47,6 +47,10 @@ setup(
 
     python_requires='>=3.9',
     install_requires=DEPENDENCIES,
+
+    entry_points={
+        'console_scripts': [NAME + ' = dot2bgraph.main:main'],
+    },
 
     classifiers=[
         'Development Status :: 4 - Beta',
