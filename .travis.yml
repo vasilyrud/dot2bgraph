@@ -1,0 +1,11 @@
+language: python
+python:
+  - "3.9"
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install graphviz graphviz-dev
+install:
+  - pip install .
+  - pip install -r requirements-dev.txt
+script:
+  - python -m pytest
