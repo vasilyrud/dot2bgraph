@@ -952,6 +952,32 @@ def test_get_edge_info_sinks_depth(region):
     assert node_depths[e] == 2
     assert node_depths[g] == 2
 
+def test_get_edge_info_complex_depth(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    d = Node('d', region)
+    e = Node('e', region)
+    f = Node('f', region)
+    a.add_edge(b)
+    a.add_edge(d)
+    b.add_edge(c)
+    b.add_edge(d)
+    c.add_edge(e)
+    c.add_edge(f)
+    d.add_edge(c)
+    d.add_edge(e)
+    d.add_edge(f)
+    e.add_edge(f)
+
+    _, node_depths = _get_edge_info(region)
+    assert node_depths[a] == 0
+    assert node_depths[b] == 1
+    assert node_depths[c] == 3
+    assert node_depths[d] == 2
+    assert node_depths[e] == 4
+    assert node_depths[f] == 5
+
 def test_get_edge_info_update_depth_with_loop(region):
     a = Node('a', region)
     b = Node('b', region)
