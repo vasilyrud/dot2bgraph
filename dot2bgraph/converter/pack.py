@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from collections import namedtuple
 
 from rectpack import newPacker
@@ -31,7 +31,9 @@ def _do_pack(bin: Tuple[int,int], rects: List[Rectangle]) -> List[Packed]:
     packer.pack()
     return packer.rect_list()
 
-def _square_bin_bounds(rectangles: List[Rectangle]) -> Tuple[int,int,List[Packed]]:
+def _square_bin_bounds(
+    rectangles: List[Rectangle]
+) -> Tuple[int,Optional[int],List[Packed]]:
     ''' Search for largest square bin size that accommodates 
     the rectangles.
 

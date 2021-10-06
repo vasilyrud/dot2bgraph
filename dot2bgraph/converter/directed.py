@@ -31,6 +31,7 @@ NodeToNodeLabel = NewType('NodeToNodeLabel', Dict[Node, str])
 EdgeToEdgeLabel = NewType('EdgeToEdgeLabel', Dict[Tuple[Node,Node], str])
 EdgeToEdgeEnds = NewType('EdgeToEdgeEnds', Dict[Tuple[Node,Node], List[int]])
 NodeToBlockId  = NewType('NodeToBlockId',  Dict[Node, int])
+SeenEdges = NewType('SeenEdges', Set[Tuple[str,str]])
 
 SubGridOffset = namedtuple('SubGridOffset', ['sub_grid', 'x', 'y', 'depth'])
 
@@ -66,20 +67,22 @@ def _direct_nodes(
 
 def _direct_edges(
     agraph: AGraph, 
-    seen_edges: Set[Tuple[str,str]],
-) -> Set[Tuple[str,str]]:
+    seen_edges: SeenEdges,
+) -> SeenEdges:
     ''' Get direct edges in the same way as with
     nodes in _direct_nodes.
     '''
     assert agraph is not None, 'AGraph is None'
 
-    all_edges = set(agraph.edges())
-    sub_agraph_edges = set()
+    all_edges: SeenEdges = cast(SeenEdges, set(agraph.edges()))
+    sub_agraph_edges: SeenEdges = cast(SeenEdges, set())
 
     for sub_agraph in _sorted_subgraphs(agraph):
         sub_agraph_edges.update(sub_agraph.edges())
 
-    direct_edges = all_edges - sub_agraph_edges - seen_edges
+    direct_edges: SeenEdges = cast(SeenEdges, 
+        all_edges - sub_agraph_edges - seen_edges
+    )
 
     return direct_edges
 
@@ -136,7 +139,7 @@ def _create_edges(
     ''' Convert all the edges in the agraph to
     Nodes' edges.
     '''
-    edge_labels: EdgeToEdgeLabel = {}
+    edge_labels: EdgeToEdgeLabel = cast(EdgeToEdgeLabel, {})
 
     for aedge in base_agraph.edges_iter():
         asource, adest = aedge
@@ -170,17 +173,17 @@ def _get_color(depth: int, max_depth: int) -> Color:
     col = 1 - val/max_val
     col = int(col * 255)
 
-    return (col,col,col)
+    return Color(col,col,col)
 
 def _iter_sub_grid_offsets(
     grid: Grid,
-    tot_offset_x: Optional[int] = 0,
-    tot_offset_y: Optional[int] = 0,
-    depth: Optional[int] = 0,
+    tot_offset_x: int = 0,
+    tot_offset_y: int = 0,
+    depth: int = 0,
 ) -> Iterator[SubGridOffset]:
 
     if depth == 0:
-        yield grid, tot_offset_x, tot_offset_y, depth
+        yield SubGridOffset(grid, tot_offset_x, tot_offset_y, depth)
 
     new_depth = depth + 1
     sub_grids = []
@@ -189,7 +192,7 @@ def _iter_sub_grid_offsets(
         new_offset_x = tot_offset_x + offset_x
         new_offset_y = tot_offset_y + offset_y
 
-        yield sub_grid, new_offset_x, new_offset_y, new_depth
+        yield SubGridOffset(sub_grid, new_offset_x, new_offset_y, new_depth)
         sub_grids.append((sub_grid, new_offset_x, new_offset_y))
 
     for sub_grid, new_offset_x, new_offset_y in sub_grids:
@@ -205,7 +208,7 @@ def _create_locations_blocks(
     sub_grid_offsets: Dict[Node,SubGridOffset],
     node_labels: NodeToNodeLabel,
 ) -> NodeToBlockId:
-    node_to_block_id: NodeToBlockId = {}
+    node_to_block_id: NodeToBlockId = cast(NodeToBlockId, {})
 
     max_depth = max(item.depth for item in sub_grid_offsets.values())
 
@@ -430,13 +433,13 @@ def _populate_subgraph(
     from_subgraph: AGraph,
     node_namespace: str,
     in_seen_nodes: Optional[Set[str]] = None,
-    in_seen_edges: Optional[Set[str,str]] = None,
+    in_seen_edges: Optional[SeenEdges] = None,
 ) -> None:
     ''' Copies from_subgraph recursively into to_subgraph.
     Prepends "<node_namespace>:" to all node/edge/subgraph IDs.
     '''
     seen_nodes: Set[str] = set() if in_seen_nodes is None else in_seen_nodes
-    seen_edges: Set[Tuple[str,str]] = set() if in_seen_edges is None else in_seen_edges
+    seen_edges: SeenEdges = cast(SeenEdges, set()) if in_seen_edges is None else in_seen_edges
 
     for from_node in _direct_nodes(from_subgraph, seen_nodes):
         anode_name = f'{node_namespace}:{from_node}'

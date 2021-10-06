@@ -30,9 +30,9 @@ class Locations:
     track of IDs from the Locations object.
     '''
     def __init__(self, 
-        bg_color: Color = (255,255,255), 
-        highlight_bg_color: Color = (255,255,255), 
-        highlight_fg_color: Color = (0,0,0),
+        bg_color: Color = Color(255,255,255), 
+        highlight_bg_color: Color = Color(255,255,255), 
+        highlight_fg_color: Color = Color(0,0,0),
     ):
         '''
         :param bg_color: Background color of the graph

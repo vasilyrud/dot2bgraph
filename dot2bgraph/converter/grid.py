@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Dict, Tuple, Set, List, NewType, Iterable, Optional
+from typing import cast, Dict, Tuple, Set, List, NewType, Iterable, Optional
 from collections import deque
 from enum import Enum, auto
 from itertools import chain
@@ -30,6 +30,7 @@ class EdgeType(Enum):
 
 EdgeTypes = NewType('EdgeTypes', Dict[Tuple[Node,Node],EdgeType])
 NodeDepths = NewType('NodeDepths', Dict[Node,int])
+SeenInEdges = NewType('SeenInEdges', Dict[Node,Set[Tuple[Node,Node]]])
 
 class Grid(ABC):
     ''' Base class for grid interface. '''
@@ -219,7 +220,7 @@ class GridPack(Grid):
         grid: Grid, 
         x: Optional[int] = None, 
         y: Optional[int] = None,
-    ) -> Grid:
+    ):
         assert x is not None
         assert y is not None
 
@@ -301,7 +302,7 @@ class GridRows(Grid):
             + self.padding_inner * (len(row) - 1)
         )
 
-    def _row_widths(self) -> int:
+    def _row_widths(self) -> List[int]:
         return [self._row_width(y) for y in self._coord2node]
 
     @property
@@ -329,7 +330,7 @@ class GridRows(Grid):
             for node in row.values()
         )
 
-    def _row_heights(self) -> int:
+    def _row_heights(self) -> List[int]:
         return [self._row_height(y) for y in self._coord2node]
 
     @property
@@ -364,7 +365,7 @@ class GridRows(Grid):
         grid: Grid, 
         x: Optional[int] = None, 
         y: Optional[int] = None,
-    ) -> Grid:
+    ):
         ''' Add node to the given x,y location.
         If y is not specified, use the last available row.
         If x is not specified, add to the end of the row.
@@ -441,7 +442,7 @@ def _sources(region: Region) -> Iterable[Node]:
     for node in region.nodes_sorted:
         if node in seen.nodes: continue
 
-        conn_comp = set()
+        conn_comp: Set[Node] = set()
         _get_conn_comp_dfs_recurse(node, seen, conn_comp)
 
         sources |= _sources_per_conn_comp(conn_comp)
@@ -459,7 +460,7 @@ def _sinks(region: Region) -> Iterable[Node]:
     for node in region.nodes_sorted:
         if node in seen.nodes: continue
 
-        conn_comp = set()
+        conn_comp: Set[Node] = set()
         _get_conn_comp_dfs_recurse(node, seen, conn_comp)
 
         assert conn_comp, 'Got empty set of connected components to get sinks from.'
@@ -530,7 +531,7 @@ def _get_edge_types(
     Assumes that source nodes will never be traversed
     to before they are used as sources.
     '''
-    edge_types: EdgeTypes = {}
+    edge_types: EdgeTypes = cast(EdgeTypes, {})
     seen = _SeenNodes()
 
     for source in _sources(region):
@@ -560,10 +561,10 @@ def _get_node_depths(
     region: Region,
     edge_types: EdgeTypes,
 ) -> NodeDepths:
-    node_depths: NodeDepths = {}
-    seen_in_edges = {}
+    node_depths: NodeDepths = cast(NodeDepths, {})
+    seen_in_edges: SeenInEdges = cast(SeenInEdges, {})
 
-    q = deque()
+    q: deque = deque()
 
     sources = _sources(region)
     for source in sources:

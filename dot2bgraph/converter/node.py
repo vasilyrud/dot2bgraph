@@ -25,7 +25,7 @@ class Node:
         self.name = name
 
         self._in_region: Optional[ref[Region]] = None
-        self.in_region = in_region
+        self.in_region: Optional[Region] = in_region
 
         self.is_region = False
 
@@ -33,7 +33,7 @@ class Node:
         self.next: List[Node] = []
 
     @property
-    def in_region(self) -> Region:
+    def in_region(self) -> Optional[Region]:
         return None if self._in_region is None else self._in_region()
 
     @in_region.setter
@@ -57,6 +57,7 @@ class Node:
         self._in_region = ref(in_region)
 
         # Set new mapping
+        assert self.in_region is not None
         assert self.name not in self.in_region.nodes_map
         self.in_region.nodes_map[self.name] = self
 
@@ -193,13 +194,13 @@ class Region(Node):
         and then return the sub-regions, all alphabetically.
         '''
         for node in sorted(
-            filter(lambda n: not n.is_region, self.nodes), 
+            (n for n in self.nodes if not n.is_region), 
             key=lambda n: n.name
         ):
             yield node
 
         for node in sorted(
-            filter(lambda n: n.is_region, self.nodes), 
+            (n for n in self.nodes if n.is_region),
             key=lambda n: n.name
         ):
             yield node
