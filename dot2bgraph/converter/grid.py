@@ -602,9 +602,9 @@ def _get_node_depths(
 
     return node_depths
 
-def _get_edge_info(node: Node) -> Tuple[EdgeTypes,NodeDepths]:
-    edge_types  = _get_edge_types(node)
-    node_depths = _get_node_depths(node, edge_types)
+def _get_edge_info(region: Region) -> Tuple[EdgeTypes,NodeDepths]:
+    edge_types  = _get_edge_types(region)
+    node_depths = _get_node_depths(region, edge_types)
     return edge_types, node_depths
 
 def _independent_sub_grids(node_depths: NodeDepths):
@@ -614,12 +614,12 @@ def _independent_sub_grids(node_depths: NodeDepths):
     )
 
 def _make_pack_grid(
-    node: Node, 
+    region: Region, 
     padding_outer: int, 
     padding_inner: int,
     sub_grids: List[Tuple[Grid,int]],
 ):
-    grid = GridPack(node, padding_outer, padding_inner)
+    grid = GridPack(region, padding_outer, padding_inner)
 
     name2grid = {}
     rectangles = []
@@ -643,12 +643,12 @@ def _make_pack_grid(
     return grid
 
 def _make_rows_grid(
-    node: Node, 
+    region: Region, 
     padding_outer: int, 
     padding_inner: int,
     sub_grids: List[Tuple[Grid,int]],
 ):
-    grid = GridRows(node, padding_outer, padding_inner)
+    grid = GridRows(region, padding_outer, padding_inner)
 
     for sub_grid, depth in sub_grids:
         grid.add_sub_grid(sub_grid, y=depth)
@@ -664,7 +664,8 @@ def place_on_grid(
     if not node.is_region:
         return GridRows(node, padding_outer, padding_inner)
 
-    _, node_depths = _get_edge_info(node)
+    region: Region = cast(Region, node)
+    _, node_depths = _get_edge_info(region)
 
     sub_grids = []
     for sub_node, depth in node_depths.items():
@@ -672,6 +673,6 @@ def place_on_grid(
         sub_grids.append((sub_grid, depth))
 
     if _independent_sub_grids(node_depths):
-        return _make_pack_grid(node, padding_outer, padding_inner, sub_grids)
+        return _make_pack_grid(region, padding_outer, padding_inner, sub_grids)
 
-    return _make_rows_grid(node, padding_outer, padding_inner, sub_grids)
+    return _make_rows_grid(region, padding_outer, padding_inner, sub_grids)
