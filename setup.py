@@ -23,7 +23,7 @@ A CLI to convert dot files to bgraph format for visualization.
 '''.strip()
 
 LONG_DESCRIPTION = '''
-dot2bgraph is a CLI that converts to dot files to bgraph format for visualization.
+dot2bgraph is a CLI that converts dot files to bgraph format for visualization. dot2bgraph supports a subset of dot features, tailored specifically to those that convert neatly to bgraph format.
 '''.strip()
 
 DEPENDENCIES = [
