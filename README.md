@@ -1,4 +1,4 @@
-# dot2bgraph ![Travis (.com)](https://img.shields.io/travis/com/vasilyrud/dot2bgraph)
+# dot2bgraph [![Travis (.com)](https://img.shields.io/travis/com/vasilyrud/dot2bgraph)](https://travis-ci.com/github/vasilyrud/dot2bgraph)
 
 `dot2bgraph` is a CLI utility to convert graphs in `dot` format to `bgraph` format, for visualization with tools like [bgrapher](https://github.com/vasilyrud/bgrapher).
 
