@@ -9,6 +9,7 @@ __pycache__/
 .venv
 *.prof
 *.egg-info
+dist
 
 Pipfile
 Pipfile.lock

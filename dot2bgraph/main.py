@@ -42,7 +42,7 @@ def _output_locations(args, locations):
 
 def _parse_args(argv):
     parser = argparse.ArgumentParser(
-        description='bgraph: large graph visualization')
+        description='dot2bgraph - a CLI to convert dot files to bgraph format for visualization.')
 
     parser.add_argument('dotfile',
         help='Path to dot file input.')

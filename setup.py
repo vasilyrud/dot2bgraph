@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pathlib
 from setuptools import setup, find_packages
 
 NAME = 'dot2bgraph'
@@ -22,9 +23,7 @@ SHORT_DESCRIPTION = '''
 A CLI to convert dot files to bgraph format for visualization.
 '''.strip()
 
-LONG_DESCRIPTION = '''
-dot2bgraph is a CLI that converts dot files to bgraph format for visualization. dot2bgraph supports a subset of dot features, tailored specifically to those that convert neatly to bgraph format.
-'''.strip()
+README = (pathlib.Path(__file__).parent / 'README.md').read_text()
 
 DEPENDENCIES = [
     'pygraphviz',
@@ -34,12 +33,13 @@ DEPENDENCIES = [
     'yaspin',
 ]
 
+
 setup(
     name=NAME,
     version=VERSION,
     url=URL,
     description=SHORT_DESCRIPTION,
-    long_description=LONG_DESCRIPTION,
+    long_description=README,
 
     author='Vasily Rudchenko',
     author_email='vasily.rudchenko.dev@gmail.com',
@@ -83,4 +83,5 @@ setup(
     ],
 
     packages=find_packages(),
+    include_package_data=True,
 )
