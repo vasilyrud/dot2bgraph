@@ -10,6 +10,7 @@ __pycache__/
 *.prof
 *.egg-info
 dist
+build
 
 Pipfile
 Pipfile.lock

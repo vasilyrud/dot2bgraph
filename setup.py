@@ -40,6 +40,7 @@ setup(
     url=URL,
     description=SHORT_DESCRIPTION,
     long_description=README,
+    long_description_content_type='text/markdown',
 
     author='Vasily Rudchenko',
     author_email='vasily.rudchenko.dev@gmail.com',
