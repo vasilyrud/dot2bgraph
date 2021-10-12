@@ -46,7 +46,7 @@ setup(
     author_email='vasily.rudchenko.dev@gmail.com',
     license='Apache Software License',
 
-    python_requires='>=3.9',
+    python_requires='>=3.5',
     install_requires=DEPENDENCIES,
 
     entry_points={

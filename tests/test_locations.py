@@ -1,9 +1,7 @@
 import pytest
-import pathlib
 import json
-# import jsonschema
 
-from dot2bgraph.locations import Locations, _Block, _EdgeEnd, Direction
+from dot2bgraph.locations import Locations, Direction
 
 def _make_blocks(locs: Locations):
     b0 = locs.add_block()
@@ -39,16 +37,6 @@ def _reload_locs(locs):
     '''
     return json.loads(
         json.dumps(locs.to_obj())
-    )
-
-@pytest.fixture
-def schema():
-    return json.loads(
-        pathlib.Path(__file__)
-            .parent
-            .joinpath('../../schema')
-            .joinpath('bgraph.json')
-            .read_text()
     )
 
 def test_locations_init_default():
@@ -311,6 +299,19 @@ def test_locations_to_obj():
             },
         ],
     }
+
+# import jsonschema
+# import pathlib
+
+# @pytest.fixture
+# def schema():
+#     return json.loads(
+#         pathlib.Path(__file__)
+#             .parent
+#             .joinpath('../../schema')
+#             .joinpath('bgraph.json')
+#             .read_text()
+#     )
 
 # def test_locations_empty_schema(schema):
 #     locs = Locations()
