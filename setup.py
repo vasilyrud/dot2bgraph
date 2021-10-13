@@ -16,7 +16,7 @@ import pathlib
 from setuptools import setup, find_packages
 
 NAME = 'dot2bgraph'
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 URL = 'https://github.com/vasilyrud/dot2bgraph'
 
 SHORT_DESCRIPTION = '''
