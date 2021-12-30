@@ -16,7 +16,6 @@ Pipfile
 Pipfile.lock
 pyproject.toml
 
-test.json
-test.png
+test.*
 notes
 experiments
