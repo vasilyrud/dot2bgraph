@@ -768,6 +768,20 @@ def test_sources_reverse_order(region):
     assert len(srcs) == 1
     assert c in srcs
 
+def test_sources_min_not_max(region):
+    a = Node('a', region)
+    b = Node('b', region)
+    c = Node('c', region)
+    a.add_edge(c)
+    c.add_edge(b)
+    c.add_edge(b)
+    c.add_edge(a)
+    b.add_edge(c)
+
+    srcs = _sources(region)
+    assert len(srcs) == 1
+    assert a in srcs
+
 def test_sources_with_other(region):
     d = Node('d', region)
     e = Node('e', region)

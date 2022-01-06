@@ -403,21 +403,24 @@ def _sources_per_conn_comp(conn_comp: Iterable[Node]) -> Set[Node]:
     Assume we are given a connected component.
     '''
     assert conn_comp, 'Got empty set of connected components to get sources from.'
+    num_prev = {node: len(list(node.local_prev)) for node in conn_comp}
+    num_next = {node: len(list(node.local_next)) for node in conn_comp}
 
     # Get node that doesn't have inward connections.
-    sources = {node for node in conn_comp if not list(node.local_prev)}
+    sources = {node for node, prevs in num_prev.items() if not prevs}
     if sources:
         return sources
 
-    # Otherwise, pick a node out of nodes with fewest inward connections 
-    # that also has the most outward connections.
-    min_inward  = min(len(list(node.local_prev)) for node in conn_comp)
-    max_outward = max(len(list(node.local_next)) for node in conn_comp)
-
+    # Otherwise, find nodes with fewest inward connections.
+    min_inward  = min(num_prev.values())
+    # From these, pick one that has the most outward connections.
+    max_outward = max(nexts for node, nexts in num_next.items() 
+        if num_prev[node] == min_inward
+    )
+    # Get the first one of these, alphabetically
     for node in sorted(conn_comp, key=lambda n: n.name):
-        if (
-            len(list(node.local_prev)) == min_inward and
-            len(list(node.local_next)) == max_outward
+        if (num_prev[node] == min_inward and
+            num_next[node] == max_outward
         ):
             return {node}
 
@@ -428,8 +431,9 @@ def _sinks_per_conn_comp(conn_comp: Iterable[Node]) -> Set[Node]:
     i.e., don't have any next edges.
     '''
     assert conn_comp, 'Got empty set of connected components to get sinks from.'
+    num_next = {node: len(list(node.local_next)) for node in conn_comp}
 
-    return {node for node in conn_comp if not list(node.local_next)}
+    return {node for node, nexts in num_next.items() if not nexts}
 
 def _get_conn_comp_dfs_recurse(node: Node, seen: _SeenNodes, conn_comp: Set[Node]) -> None:
     seen.nodes.add(node)
