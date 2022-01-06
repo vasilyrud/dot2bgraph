@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- Fix source and sink choices when there are in and out edges from nodes in other regions.
+
 ## [0.1.1] - 2021-10-12
 
 ### Added

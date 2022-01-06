@@ -768,6 +768,47 @@ def test_sources_reverse_order(region):
     assert len(srcs) == 1
     assert c in srcs
 
+def test_sources_with_other(region):
+    d = Node('d', region)
+    e = Node('e', region)
+    f = Node('f', region)
+    d.add_edge(f)
+    e.add_edge(f)
+
+    # "other" region
+    r1 = Region('r1')
+    a = Node('a', r1)
+    a.add_edge(d)
+
+    srcs = _sources(region)
+    assert len(srcs) == 2
+    assert d in srcs
+    assert e in srcs
+
+def test_sources_with_both(region):
+    d = Node('d', region)
+    e = Node('e', region)
+    f = Node('f', region)
+    e.add_edge(d)
+    e.add_edge(d)
+    e.add_edge(f)
+    d.add_edge(f)
+    d.add_edge(f)
+    f.add_edge(d)
+    f.add_edge(d)
+    f.add_edge(e)
+
+    # "other" region
+    r1 = Region('r1')
+    a = Node('a', r1)
+    a.add_edge(e)
+    a.add_edge(e)
+    a.add_edge(e)
+
+    srcs = _sources(region)
+    assert len(srcs) == 1
+    assert e in srcs
+
 def test_sinks_empty_region(region):
     snks = _sinks(region)
     assert len(snks) == 0
@@ -793,6 +834,23 @@ def test_sinks_not_pure(region):
     snks = _sinks(region)
     assert len(snks) == 0
 
+def test_sinks_with_other(region):
+    d = Node('d', region)
+    e = Node('e', region)
+    f = Node('f', region)
+    f.add_edge(d)
+    f.add_edge(e)
+
+    # "other" region
+    r1 = Region('r1')
+    a = Node('a', r1)
+    d.add_edge(a)
+
+    snks = _sinks(region)
+    assert len(snks) == 2
+    assert d in snks
+    assert e in snks
+
 def test_get_edge_info_loose(region):
     a = Node('a', region)
     b = Node('b', region)
@@ -800,6 +858,7 @@ def test_get_edge_info_loose(region):
     edge_types, node_depths = _get_edge_info(region)
     assert node_depths[a] == 0
     assert node_depths[b] == 0
+    assert len(edge_types) == 0
 
 def test_get_edge_info_loop(region):
     a = Node('a', region)

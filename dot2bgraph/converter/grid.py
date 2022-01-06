@@ -405,24 +405,33 @@ def _sources_per_conn_comp(conn_comp: Iterable[Node]) -> Set[Node]:
     assert conn_comp, 'Got empty set of connected components to get sources from.'
 
     # Get node that doesn't have inward connections.
-    sources = {node for node in conn_comp if not node.prev}
-    if sources: return sources
+    sources = {node for node in conn_comp if not list(node.local_prev)}
+    if sources:
+        return sources
 
     # Otherwise, pick a node out of nodes with fewest inward connections 
     # that also has the most outward connections.
-    min_inward  = min(len(node.prev) for node in conn_comp)
-    max_outward = max(len(node.next) for node in conn_comp)
+    min_inward  = min(len(list(node.local_prev)) for node in conn_comp)
+    max_outward = max(len(list(node.local_next)) for node in conn_comp)
 
     for node in sorted(conn_comp, key=lambda n: n.name):
         if (
-            len(node.prev) == min_inward and
-            len(node.next) == max_outward
+            len(list(node.local_prev)) == min_inward and
+            len(list(node.local_next)) == max_outward
         ):
             return {node}
 
     assert False, 'Somehow didn\'t find any source node.'
 
-def _get_conn_comp_dfs_recurse(node, seen, conn_comp):
+def _sinks_per_conn_comp(conn_comp: Iterable[Node]) -> Set[Node]:
+    ''' Get sinks, but only the ones that are "pure",
+    i.e., don't have any next edges.
+    '''
+    assert conn_comp, 'Got empty set of connected components to get sinks from.'
+
+    return {node for node in conn_comp if not list(node.local_next)}
+
+def _get_conn_comp_dfs_recurse(node: Node, seen: _SeenNodes, conn_comp: Set[Node]) -> None:
     seen.nodes.add(node)
     conn_comp.add(node)
 
@@ -433,8 +442,7 @@ def _get_conn_comp_dfs_recurse(node, seen, conn_comp):
         _get_conn_comp_dfs_recurse(next_node, seen, conn_comp)
 
 def _sources(region: Region) -> Iterable[Node]:
-    ''' Get sources, one per connected component.
-    Return in alphabetical order.
+    ''' Get 1 or more sources.
     '''
     seen = _SeenNodes()
     sources = set()
@@ -450,9 +458,7 @@ def _sources(region: Region) -> Iterable[Node]:
     return list(sorted(sources, key=lambda s: s.name))
 
 def _sinks(region: Region) -> Iterable[Node]:
-    ''' Get sinks, but only the ones that are "pure",
-    i.e., don't have any next edges.
-    Return in alphabetical order.
+    ''' Get 0 or more sinks.
     '''
     seen = _SeenNodes()
     sinks = set()
@@ -463,8 +469,7 @@ def _sinks(region: Region) -> Iterable[Node]:
         conn_comp: Set[Node] = set()
         _get_conn_comp_dfs_recurse(node, seen, conn_comp)
 
-        assert conn_comp, 'Got empty set of connected components to get sinks from.'
-        sinks |= {node for node in conn_comp if not node.next}
+        sinks |= _sinks_per_conn_comp(conn_comp)
 
     return list(sorted(sinks, key=lambda s: s.name))
 
@@ -522,7 +527,7 @@ def _get_edge_types_recurse(
 
 def _get_edge_types(
     region: Region,
-):
+) -> EdgeTypes:
     ''' Classify edges in the graph.
 
     Call DFS to edge classification starting only
